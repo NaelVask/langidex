@@ -1,0 +1,1484 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LangIndex | Developer Adoption Protocol</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #0b0e14;
+      --bg-panel: #131722;
+      --bg-card: #1b202e;
+      --bg-card-hover: #262c3d;
+      --border: #232938;
+      --border-subtle: #1a202c;
+      --text-primary: #eaecef;
+      --text-secondary: #8c97a8;
+      --text-tertiary: #5c667a;
+      --brand-purple: #8b5cf6;
+      --brand-purple-hover: #a78bfa;
+      --brand-purple-glow: rgba(139, 92, 246, 0.15);
+      --buy: #0ecb81;
+      --buy-hover: #0bb371;
+      --sell: #f6465d;
+      --sell-hover: #e0394f;
+      --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'IBM Plex Mono', SFMono-Regular, Consolas, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .up { color: var(--buy) !important; }
+    .down { color: var(--sell) !important; }
+
+    /* Top Navigation */
+    .nav-bar {
+      height: 48px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-left, .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+      color: #fff;
+      cursor: pointer;
+    }
+    .brand-icon {
+      width: 22px;
+      height: 22px;
+      background: var(--brand-purple);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      color: #fff;
+    }
+    .nav-link {
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.12s;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--brand-purple);
+    }
+    .btn-brand {
+      background: var(--brand-purple);
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .btn-brand:hover {
+      background: var(--brand-purple-hover);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-ghost:hover {
+      background: var(--bg-card);
+      border-color: var(--text-secondary);
+    }
+
+    /* Sub-Header Ticker Bar */
+    .market-ticker-bar {
+      height: 56px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 26px;
+      overflow-x: auto;
+    }
+    .pair-badge {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .pair-symbol {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .pair-asset-tag {
+      font-size: 11px;
+      color: var(--brand-purple);
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .ticker-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ticker-stat-label {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .ticker-stat-val {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* GitHub Ecosystem Share Bar */
+    .eco-bar-container {
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .eco-bar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .eco-strip {
+      display: flex;
+      height: 8px;
+      background: #1b202e;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .eco-segment {
+      height: 100%;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .eco-segment:hover { opacity: 0.8; }
+    .eco-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 11px;
+    }
+    .eco-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+    .eco-chip:hover, .eco-chip.active { color: #fff; }
+    .eco-dot { width: 7px; height: 7px; border-radius: 2px; }
+
+    /* Core Trading Terminal Workspace */
+    .terminal-body {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      flex: 1;
+      background: var(--bg-base);
+    }
+    @media (max-width: 1200px) {
+      .terminal-body { grid-template-columns: 1fr 340px; }
+      .market-col { display: none; }
+    }
+    @media (max-width: 860px) {
+      .terminal-body { grid-template-columns: 1fr; }
+    }
+
+    /* Left Column: Markets List */
+    .market-col {
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .col-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .market-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 8px;
+      gap: 12px;
+    }
+    .m-tab {
+      padding: 8px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .m-tab.active {
+      color: var(--brand-purple);
+      border-bottom-color: var(--brand-purple);
+    }
+    .market-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .market-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--text-tertiary);
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .market-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      cursor: pointer;
+    }
+    .market-table tr:hover {
+      background: var(--bg-card);
+    }
+    .market-table tr.active-row {
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    /* Center Column: Chart & Pro Timeframes */
+    .center-col {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+    }
+    .chart-toolbar {
+      height: 40px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tf-group {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .tf-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .tf-btn:hover { color: #fff; }
+    .tf-btn.active {
+      background: var(--bg-card);
+      color: var(--brand-purple);
+      border: 1px solid var(--border);
+    }
+    .chart-view-area {
+      flex: 1;
+      min-height: 440px;
+      background: #0f121a;
+      padding: 12px;
+      position: relative;
+    }
+    canvas#proChart {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Compare Multi-Asset Ticker strip below chart */
+    .compare-strip {
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+    }
+    .compare-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+    .compare-item input { accent-color: var(--brand-purple); }
+
+    /* Bottom Panels: Ledger & Positions */
+    .bottom-ledger-tabs {
+      height: 36px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 20px;
+    }
+    .ledger-tab {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding-bottom: 6px;
+      border-bottom: 2px solid transparent;
+    }
+    .ledger-tab.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--brand-purple);
+    }
+    .bottom-table-wrap {
+      background: var(--bg-panel);
+      min-height: 140px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    /* Right Column: Order Book & Order Ticket */
+    .right-col {
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+    }
+    .order-book-wrap {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+    .ob-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 2px 0;
+      position: relative;
+    }
+    .ob-depth-bar {
+      position: absolute;
+      top: 0; bottom: 0; right: 0;
+      opacity: 0.12;
+      pointer-events: none;
+    }
+    .ob-spread-price {
+      padding: 6px 0;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    /* Order Execution Form */
+    .order-form-wrap {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .order-type-tabs {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+    .ot-tab.active { color: var(--brand-purple); }
+    .side-toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .btn-side {
+      height: 34px;
+      border: none;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      transition: all 0.12s;
+    }
+    .btn-side.buy-active {
+      background: var(--buy);
+      color: #fff;
+    }
+    .btn-side.sell-active {
+      background: var(--sell);
+      color: #fff;
+    }
+    .input-box {
+      background: #1e2433;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.12s;
+    }
+    .input-box:focus-within {
+      border-color: var(--brand-purple);
+    }
+    .input-box input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      width: 70%;
+    }
+    .input-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-weight: 600;
+    }
+    .slider-pips {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .pip-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 0;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .pip-btn:hover {
+      background: var(--border);
+      color: #fff;
+    }
+    .btn-trade-execute {
+      height: 38px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.12s;
+    }
+    .btn-trade-execute.buy { background: var(--buy); }
+    .btn-trade-execute.buy:hover { background: var(--buy-hover); }
+    .btn-trade-execute.sell { background: var(--sell); }
+    .btn-trade-execute.sell:hover { background: var(--sell-hover); }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .modal-backdrop.show { opacity: 1; pointer-events: auto; }
+    .modal-window {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 520px;
+      max-width: 92vw;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Satoshi Cryptographic Proof Card */
+    .crypto-proof-box {
+      background: #0b0e14;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      word-break: break-all;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation (Purple Theme) -->
+  <nav class="nav-bar">
+    <div class="nav-left">
+      <div class="nav-brand" onclick="location.reload()">
+        <div class="brand-icon">덱</div>
+        <span>Lang<b style="color:var(--brand-purple)">Index</b></span>
+      </div>
+      <a class="nav-link active">Ecosystem Ledger</a>
+      <a class="nav-link" onclick="openOracleModal()">Multi-Source Oracles & Defense</a>
+      <a class="nav-link" onclick="openGenesisModal()">Genesis Cryptographic Proof</a>
+    </div>
+
+    <div class="nav-right">
+      <div id="walletBadge" style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:11px; color:var(--text-secondary);">WALLET:</span>
+        <span class="num" id="userAddressLabel" style="font-size:11px; color:var(--brand-purple); font-weight:600;">0x...Disconnected</span>
+        <span class="num" id="userBalanceLabel" style="font-size:12px; font-weight:700; margin-left:6px;"><span class="num" id="userBalanceLabel" style="font-size:12px; font-weight:700; margin-left:6px;">$0.00 USDT</span>.00 USDT</span> <span class="num" id="userDekLabel" style="font-size:11px; font-weight:700; color:#10b981; margin-left:6px; background:rgba(16,185,129,0.12); padding:2px 6px; border-radius:3px;">0.00 DEK</span>
+      </div>
+      <button class="btn-ghost" onclick="openDepositModal()">Deposit</button>
+      <button class="btn-brand" id="btnConnect" onclick="openConnectModal()">Connect Keypair</button>
+    </div>
+  </nav>
+
+  <!-- Market Header Ticker Bar -->
+  <div class="market-ticker-bar">
+    <div class="pair-badge">
+      <span class="pair-symbol" id="curPairSymbol">RS/USDT</span>
+      <span class="pair-asset-tag" id="curPairTag">Systems & Web3</span>
+    </div>
+
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">Adoption Price</span>
+      <span class="ticker-stat-val num" id="topPrice">$108.63</span>
+    </div>
+
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">Daily Pushed Repos</span>
+      <span class="ticker-stat-val num" id="topRepos">15,374</span>
+    </div>
+
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">GitHub Share</span>
+      <span class="ticker-stat-val num" id="topShare">4.72%</span>
+    </div>
+
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">Package Registry</span>
+      <span class="ticker-stat-val" style="color:#fff; font-weight:600;" id="topPkg">crates.io (368k)</span>
+    </div>
+
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">7D Momentum</span>
+      <span class="ticker-stat-val num up" id="topChange7d">+8.63%</span>
+    </div>
+
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">Oracles</span>
+      <span class="ticker-stat-val" style="color:var(--brand-purple); font-size:11px; font-weight:600;">● GitHub + Registries</span>
+    </div>
+  </div>
+    <div class="ticker-stat" style="margin-left:auto; border-left:1px solid var(--border); padding-left:20px;">
+      <span class="ticker-stat-label">Block Height</span>
+      <span class="ticker-stat-val num" id="blockHeight" style="color:#f7931a; font-weight:700;">�</span>
+    </div>
+    <div class="ticker-stat">
+      <span class="ticker-stat-label">Anti-Sybil</span>
+      <span class="ticker-stat-val" style="font-size:11px; font-weight:600; color:#0ecb81;">? ACTIVE</span>
+    </div>
+  </div>
+
+  <!-- Real GitHub Ecosystem Linguist Bar -->
+  <div class="eco-bar-container">
+    <div class="eco-bar-top">
+      <span>Multi-Source Code Activity Distribution (Live Scanned)</span>
+      <span id="ecoTotalStats">Total Active Daily Repos: 326,000+</span>
+    </div>
+    <div class="eco-strip" id="ecoStrip"></div>
+    <div class="eco-chips" id="ecoChips"></div>
+  </div>
+
+  <!-- Core Terminal Workspace -->
+  <div class="terminal-body">
+
+    <!-- Left: Markets List -->
+    <div class="market-col">
+      <div class="col-header">
+        <span>ASSET INDEX</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">DAILY REPOS</span>
+      </div>
+      <div class="market-tabs">
+        <span class="m-tab active" onclick="filterMarket('all', this)">All</span>
+        <span class="m-tab" onclick="filterMarket('Systems', this)">Systems</span>
+        <span class="m-tab" onclick="filterMarket('Web', this)">Web</span>
+        <span class="m-tab" onclick="filterMarket('Enterprise', this)">Enterprise</span>
+      </div>
+      <div style="flex:1; overflow-y:auto;">
+        <table class="market-table">
+          <thead>
+            <tr>
+              <th>Language</th>
+              <th>Price</th>
+              <th style="text-align:right;">Pushed Repos</th>
+            </tr>
+          </thead>
+          <tbody id="marketTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Center: Pro Chart + History Ledger -->
+    <div class="center-col">
+      <div class="chart-toolbar">
+        <!-- Metric Switcher Buttons (Price vs Repos vs Share vs Compare) -->
+        <div class="tf-group">
+          <span style="font-size:11px; color:var(--text-tertiary); font-weight:600; margin-right:4px;">Plot:</span>
+          <button class="tf-btn active" id="btnMetricPrice" onclick="setPlotMetric('price')">Price ($)</button>
+          <button class="tf-btn" id="btnMetricRepos" onclick="setPlotMetric('repos')">Daily Repos Pushed</button>
+          <button class="tf-btn" id="btnMetricShare" onclick="setPlotMetric('share')">Ecosystem Share (%)</button>
+          <button class="tf-btn" id="btnMetricCompare" onclick="setPlotMetric('compare')">Compare All Movers</button>
+        </div>
+
+        <div class="tf-group">
+          <span style="font-size:11px; color:var(--text-tertiary); font-weight:600; margin-right:2px;">Range:</span>
+          <button class="tf-btn" onclick="setTimeframe(1)" id="tf1">1D</button>
+          <button class="tf-btn" onclick="setTimeframe(3)" id="tf3">3D</button>
+          <button class="tf-btn active" onclick="setTimeframe(7)" id="tf7">7D</button>
+          <button class="tf-btn" onclick="setTimeframe(0)" id="tfAll">ALL</button>
+        </div>
+      </div>
+
+      <!-- Chart Canvas -->
+      <div class="chart-view-area">
+        <canvas id="proChart"></canvas>
+      </div>
+
+      <!-- Multi-Asset Compare Toggle Bar -->
+      <div class="compare-strip" id="compareStrip" style="display:none;">
+        <span style="color:var(--text-tertiary); font-weight:600;">Assets:</span>
+        <div id="compareCheckboxes" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Bottom Ledger Tabs -->
+      <div class="bottom-ledger-tabs">
+        <span class="ledger-tab active" onclick="switchLedgerTab('positions', this)">Holdings & Ledger (<span id="posCount">0</span>)</span>
+        <span class="ledger-tab" onclick="switchLedgerTab('history', this)">Execution Log</span>
+        <span class="ledger-tab" onclick="switchLedgerTab('leaderboard', this)">Leaderboard</span>
+      </div>
+
+      <!-- Bottom Tables -->
+      <div class="bottom-table-wrap">
+        <div id="tabPositionsView">
+          <table class="market-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Holdings</th>
+                <th>Entry Price</th>
+                <th>Index Price</th>
+                <th>Position Value</th>
+                <th style="text-align:right;">Unrealized PNL</th>
+              </tr>
+            </thead>
+            <tbody id="positionsTableBody">
+              <tr><td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:24px;">No positions held. Connect keypair to trade.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tabHistoryView" style="display:none;">
+          <table class="market-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Pair</th>
+                <th>Side</th>
+                <th>Executed Units</th>
+                <th>Fill Price</th>
+                <th style="text-align:right;">Total (USDT)</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr><td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:24px;">No trade history.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tabLeaderboardView" style="display:none;">
+          <table class="market-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Trader Address</th>
+                <th>Portfolio Value</th>
+                <th style="text-align:right;">Total Return</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Order Book & Order Entry -->
+    <div class="right-col">
+      <!-- Order Book -->
+      <div class="col-header">
+        <span>ORDER BOOK</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">SIZE (UNITS)</span>
+      </div>
+      <div class="order-book-wrap">
+        <div id="obAsks" style="display:flex; flex-direction:column-reverse; gap:1px;"></div>
+        <div class="ob-spread-price">
+          <span class="num up" id="obMidPrice">$108.63</span>
+          <span style="font-size:10px; color:var(--text-tertiary);">Spread 0.02%</span>
+        </div>
+        <div id="obBids" style="display:flex; flex-direction:column; gap:1px;"></div>
+      </div>
+
+      <!-- Order Ticket -->
+      <div class="order-form-wrap">
+        <div class="order-type-tabs">
+          <span class="ot-tab active">Market</span>
+          <span class="ot-tab">Limit</span>
+        </div>
+
+        <div class="side-toggle-grid">
+          <button class="btn-side buy-active" id="btnSideBuy" onclick="setSide('buy')">Buy <span id="sideSymBuy">RS</span></button>
+          <button class="btn-side" id="btnSideSell" onclick="setSide('sell')">Sell <span id="sideSymSell">RS</span></button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-secondary);">
+          <span>Available Balance</span>
+          <span class="num" id="availBalanceLabel">$0.00 USDT</span>
+        </div>
+
+        <div class="input-box">
+          <span class="input-label">Order Value</span>
+          <input type="number" id="orderInputPoints" placeholder="0.00" min="0" oninput="calcOrderUnits()">
+          <span class="input-label" style="color:#fff;">USDT</span>
+        </div>
+
+        <div class="slider-pips">
+          <button class="pip-btn" onclick="applyFraction(0.25)">25%</button>
+          <button class="pip-btn" onclick="applyFraction(0.50)">50%</button>
+          <button class="pip-btn" onclick="applyFraction(0.75)">75%</button>
+          <button class="pip-btn" onclick="applyFraction(1.00)">100%</button>
+        </div>
+
+        <div style="background:var(--bg-base); padding:8px 10px; border-radius:3px; display:flex; justify-content:space-between; font-size:11px; color:var(--text-secondary);">
+          <span>Est. Quantity</span>
+          <span class="num" id="estQtyLabel" style="color:#fff; font-weight:600;">0.0000 RS</span>
+        </div>
+
+        <button class="btn-trade-execute buy" id="btnSubmitOrder" onclick="submitTradeOrder()">
+          Buy RS
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Multi-Source Oracles & Anti-Spam Modal -->
+  <div class="modal-backdrop" id="oracleModal">
+    <div class="modal-window">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:700;">Multi-Source Oracle Architecture & Anti-Sybil Defense</h3>
+        <button class="btn-ghost" onclick="closeOracleModal()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary);">
+        How the index eliminates single-point-of-failure reliance on GitHub and prevents spam manipulation:
+      </p>
+      <div class="crypto-proof-box">
+        <div><b>1. Multi-Source Redundancy:</b></div>
+        <div>• <b>GitHub API:</b> Public repositories pushed with non-fork commit validation.</div>
+        <div>• <b>Package Registries:</b> Real library publishing volume from <code>crates.io</code>, <code>PyPI</code>, <code>npm</code>, <code>NuGet</code>.</div>
+        <div>• <b>GitLab & Codeberg:</b> Mirroring commit frequency outside Microsoft's ecosystem.</div>
+        <div>• <b>Software Heritage:</b> Global open-source archival hash verification.</div>
+        <div style="margin-top:6px;"><b>2. Anti-Spam Clipping (Cost to Fake Usage):</b></div>
+        <div>• <b>2.0x Median Clip:</b> Daily activity surges are clipped to 2.0x recent 14-day median, neutralizing sudden bot bursts.</div>
+        <div>• <b>Account Age & Fork Filter:</b> Forked repositories and newly minted disposable accounts are stripped from calculations.</div>
+        <div>• <b>7-Day Moving Window:</b> Naturalizes weekend activity patterns to measure institutional developer momentum.</div>
+      </div>
+      <button class="btn-brand" onclick="closeOracleModal()" style="width:100%;">Close Architecture Overview</button>
+    </div>
+  </div>
+
+  <!-- Genesis Integrity Modal -->
+  <div class="modal-backdrop" id="genesisModal">
+    <div class="modal-window">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:700;">Protocol Genesis & Cryptographic Proof</h3>
+        <button class="btn-ghost" onclick="closeGenesisModal()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary);">
+        Protocol integrity is mathematically anchored by a Genesis cryptographic hash and public key signature:
+      </p>
+      <div class="crypto-proof-box">
+        <div><b>Protocol:</b> <span id="genProto">Build Coin Protocol — Developer Adoption Index</span></div>
+        <div><b>Genesis Manifest:</b> <span id="genManifest">The Developer Ecosystem Belongs to the Builders</span></div>
+        <div><b>Genesis Block Hash (SHA-256):</b></div>
+        <div style="color:var(--brand-purple);" id="genHash">10bc5f8c1d605af6...</div>
+        <div><b>Master Creator Signature (secp256k1):</b></div>
+        <div style="font-size:10px; color:#fff;" id="genSig">3045022100e4b85c2980b1df308a287233f2b4c19559815049a4f494950b73c2ad2c355ad4...</div>
+      </div>
+      <div style="font-size:11px; color:var(--text-tertiary);">
+        No company or authority can forge this signature or rewrite historical GitHub commitments.
+      </div>
+      <button class="btn-brand" onclick="closeGenesisModal()" style="width:100%;">Close Verification</button>
+    </div>
+  </div>
+
+  <!-- Connect / Generate Keypair Modal -->
+  <div class="modal-backdrop" id="connectModal">
+    <div class="modal-window">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:700;">Connect Cryptographic Identity</h3>
+        <button class="btn-ghost" onclick="closeConnectModal()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary);">
+        Connect with an anonymous cryptographic address or generate a new keypair:
+      </p>
+      <div class="input-box">
+        <input type="text" id="walletInput" placeholder="Enter Public Key / Address (e.g. 0x8a7...)" style="width:100%;">
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-ghost" onclick="generateRandomKey()" style="flex:1;">Generate Keypair</button>
+        <button class="btn-brand" onclick="confirmConnect()" style="flex:1;">Connect Wallet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deposit Modal -->
+  <div class="modal-backdrop" id="depositModal">
+    <div class="modal-window">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:700;">Fund Trading Balance</h3>
+        <button class="btn-ghost" onclick="closeDepositModal()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary);">
+        Specify amount of USDT to deposit into your self-custody exchange ledger:
+      </p>
+      <div class="input-box">
+        <input type="number" id="depositInput" placeholder="Amount (e.g. 500)" min="1" style="width:80%;">
+        <span class="input-label" style="color:#fff;">USDT</span>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="pip-btn" onclick="$('depositInput').value=100">$100</button>
+        <button class="pip-btn" onclick="$('depositInput').value=500">$500</button>
+        <button class="pip-btn" onclick="$('depositInput').value=1000">$1,000</button>
+        <button class="pip-btn" onclick="$('depositInput').value=5000">$5,000</button>
+      </div>
+      <button class="btn-brand" onclick="confirmDeposit()" style="width:100%; margin-top:6px;">Confirm Deposit</button>
+    </div>
+  </div>
+
+  <script>
+    // App State
+    let userToken = localStorage.getItem("bc_address") || localStorage.getItem("tx_address") || "";
+    let assets = [];
+    let ecosystem = {};
+    let curSym = "RS";
+    let curSide = "buy";
+    let plotMetric = "price"; // 'price', 'repos', 'share', 'compare'
+    let timeframeDays = 7;
+    let chartInstance = null;
+    let userPortfolio = null;
+    let compareSymbols = new Set(["RS", "CPP", "GO", "TS", "PY", "PHP"]);
+    let currentFilter = "all";
+
+    const $ = id => document.getElementById(id);
+    const fmt = (n, d=2) => Number(n).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+
+    // Modals
+    function openOracleModal() { $("oracleModal").classList.add("show"); }
+    function closeOracleModal() { $("oracleModal").classList.remove("show"); }
+    function openGenesisModal() { fetchGenesis(); $("genesisModal").classList.add("show"); }
+    function closeGenesisModal() { $("genesisModal").classList.remove("show"); }
+    function openConnectModal() { $("connectModal").classList.add("show"); }
+    function closeConnectModal() { $("connectModal").classList.remove("show"); }
+    function openDepositModal() {
+      if (!userToken) { openConnectModal(); return; }
+      $("depositModal").classList.add("show");
+    }
+    function closeDepositModal() { $("depositModal").classList.remove("show"); }
+
+    async function api(path, opts={}) {
+      const headers = { "Content-Type": "application/json" };
+      if (userToken) headers["X-Token"] = userToken;
+      const res = await fetch(path, { ...opts, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "API Error");
+      return data;
+    }
+
+    function generateRandomKey() {
+      const chars = "0123456789abcdef";
+      let addr = "0x";
+      for (let i = 0; i < 40; i++) addr += chars[Math.floor(Math.random() * chars.length)];
+      $("walletInput").value = addr;
+    }
+
+    async function confirmConnect() {
+      let addr = $("walletInput").value.trim();
+      if (!addr) addr = "0x" + Array.from(crypto.getRandomValues(new Uint8Array(20))).map(b => b.toString(16).padStart(2,'0')).join('');
+      const res = await api("/api/signup", {
+        method: "POST",
+        body: JSON.stringify({ name: addr.slice(0, 8), address: addr })
+      });
+      userToken = res.token;
+      localStorage.setItem("bc_address", userToken);
+      localStorage.removeItem("tx_address");
+      closeConnectModal();
+      await loadUserData();
+    }
+
+    async function confirmDeposit() {
+      const amt = parseFloat($("depositInput").value) || 0;
+      if (amt <= 0) return;
+      await api("/api/deposit", {
+        method: "POST",
+        body: JSON.stringify({ amount: amt })
+      });
+      closeDepositModal();
+      await loadUserData();
+    }
+
+    async function fetchGenesis() {
+      try {
+        const g = await api("/api/genesis");
+        $("genProto").textContent = g.protocol;
+        $("genManifest").textContent = g.creator_manifest;
+        $("genHash").textContent = g.genesis_hash;
+        $("genSig").textContent = g.signature;
+      } catch (e) {}
+    }
+
+    async function init() {
+      try {
+        const res = await api("/api/assets");
+        assets = res.assets;
+        ecosystem = res.ecosystem;
+
+        renderEcosystemBar();
+        renderMarketsTable();
+        selectAsset(curSym);
+        fetchOrderBook();
+        fetchOracleStatus();
+
+        if (userToken) {
+          await loadUserData();
+        } else {
+          $("userAddressLabel").textContent = "Disconnected";
+          $("userBalanceLabel").textContent = "$0.00 USDT";
+          $("availBalanceLabel").textContent = "$0.00 USDT";
+        }
+
+        loadLeaderboard();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderEcosystemBar() {
+      const dist = ecosystem.distribution || [];
+      $("ecoStrip").innerHTML = dist.map(d => `
+        <div class="eco-segment" style="width:${d.share_pct}%; background:${d.color};"
+             title="${d.name}: ${d.share_pct}% (${fmt(d.count, 0)} repos)"
+             onclick="selectAsset('${d.symbol}')"></div>
+      `).join("");
+
+      $("ecoChips").innerHTML = dist.map(d => `
+        <div class="eco-chip ${d.symbol === curSym ? 'active' : ''}" onclick="selectAsset('${d.symbol}')">
+          <span class="eco-dot" style="background:${d.color}"></span>
+          <span>${d.symbol}</span>
+          <span class="num">${d.share_pct}%</span>
+        </div>
+      `).join("");
+
+      $("ecoTotalStats").textContent = `Tracking ${fmt(ecosystem.total_repos_today || 0, 0)} daily repositories pushed (GitHub Live API)`;
+    }
+
+    function filterMarket(cat, el) {
+      currentFilter = cat;
+      document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderMarketsTable();
+    }
+
+    function renderMarketsTable() {
+      const tbody = $("marketTableBody");
+      const list = assets.filter(a => {
+        if (currentFilter === "all") return true;
+        return a.category.toLowerCase().includes(currentFilter.toLowerCase());
+      });
+
+      tbody.innerHTML = list.map(a => `
+        <tr class="${a.symbol === curSym ? 'active-row' : ''}" onclick="selectAsset('${a.symbol}')">
+          <td>
+            <div style="font-weight:700; color:#fff;">${a.symbol}<span style="color:var(--text-tertiary); font-size:10px;">/USDT</span></div>
+            <div style="font-size:10px; color:var(--text-secondary);">${a.name}</div>
+          </td>
+          <td class="num" style="font-weight:600;">$${fmt(a.price, 2)}</td>
+          <td class="num" style="text-align:right; font-weight:600; color:#fff;">
+            ${fmt(a.latest_count, 0)}
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function selectAsset(sym) {
+      curSym = sym;
+      const a = assets.find(x => x.symbol === sym);
+      if (!a) return;
+
+      $("curPairSymbol").textContent = `${a.symbol}/USDT`;
+      $("curPairTag").textContent = a.category;
+      $("topPrice").textContent = `$${fmt(a.price, 2)}`;
+      $("topRepos").textContent = fmt(a.latest_count, 0);
+      $("topShare").textContent = `${a.share_pct}%`;
+      $("topPkg").textContent = `${a.pkg || 'Registry'}: ${a.pkg_stats || 'Active'}`;
+      $("topChange7d").textContent = `${a.change_all >= 0 ? '+' : ''}${fmt(a.change_all, 2)}%`;
+      $("topChange7d").className = `ticker-stat-val num ${a.change_all >= 0 ? 'up' : 'down'}`;
+
+      $("sideSymBuy").textContent = a.symbol;
+      $("sideSymSell").textContent = a.symbol;
+      $("btnSubmitOrder").textContent = `${curSide === 'buy' ? 'Buy' : 'Sell'} ${a.symbol}`;
+
+      renderMarketsTable();
+      renderEcosystemBar();
+      renderProChart();
+      fetchOrderBook();
+      calcOrderUnits();
+    }
+
+    // Metric Switcher: Price, Daily Repos Pushed, Ecosystem Share, Compare
+    function setPlotMetric(metric) {
+      plotMetric = metric;
+      ["btnMetricPrice", "btnMetricRepos", "btnMetricShare", "btnMetricCompare"].forEach(id => $(id).classList.remove("active"));
+      if (metric === "price") $("btnMetricPrice").classList.add("active");
+      else if (metric === "repos") $("btnMetricRepos").classList.add("active");
+      else if (metric === "share") $("btnMetricShare").classList.add("active");
+      else if (metric === "compare") $("btnMetricCompare").classList.add("active");
+
+      $("compareStrip").style.display = metric === "compare" ? "flex" : "none";
+      if (metric === "compare") renderCompareCheckboxes();
+      renderProChart();
+    }
+
+    function setTimeframe(d) {
+      timeframeDays = d;
+      ["tf1", "tf3", "tf7", "tfAll"].forEach(id => $(id).classList.remove("active"));
+      if (d === 1) $("tf1").classList.add("active");
+      else if (d === 3) $("tf3").classList.add("active");
+      else if (d === 7) $("tf7").classList.add("active");
+      else $("tfAll").classList.add("active");
+      renderProChart();
+    }
+
+    function renderCompareCheckboxes() {
+      $("compareCheckboxes").innerHTML = assets.map(a => `
+        <label class="compare-item">
+          <input type="checkbox" ${compareSymbols.has(a.symbol) ? 'checked' : ''} onchange="toggleCompareSym('${a.symbol}')">
+          <span style="color:${a.color};">●</span>
+          <span>${a.symbol}</span>
+        </label>
+      `).join("");
+    }
+
+    function toggleCompareSym(sym) {
+      if (compareSymbols.has(sym)) compareSymbols.delete(sym);
+      else compareSymbols.add(sym);
+      renderProChart();
+    }
+
+    // Charting Engine with Multiple Plottable Metrics
+    function renderProChart() {
+      const ctx = $("proChart").getContext("2d");
+      if (chartInstance) chartInstance.destroy();
+
+      if (plotMetric === "compare") {
+        // Multi-Asset Comparison (Normalized 100 on start date)
+        const datasets = [];
+        let labels = [];
+
+        assets.forEach(a => {
+          if (!compareSymbols.has(a.symbol)) return;
+          let hist = a.history || [];
+          if (timeframeDays > 0 && hist.length > timeframeDays) hist = hist.slice(-timeframeDays);
+          if (labels.length === 0) labels = hist.map(h => h.day.slice(5));
+
+          const baseP = hist[0]?.price || 100.0;
+          const normalized = hist.map(h => (h.price / baseP) * 100.0);
+
+          datasets.push({
+            label: `${a.symbol}`,
+            data: normalized,
+            borderColor: a.color,
+            borderWidth: a.symbol === curSym ? 3 : 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.15
+          });
+        });
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: { color: '#8c97a8', font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 10 }
+              },
+              tooltip: {
+                backgroundColor: '#131722',
+                borderColor: '#232938',
+                borderWidth: 1,
+                callbacks: {
+                  label: ctx => ` ${ctx.dataset.label}: ${(ctx.parsed.y - 100 >= 0 ? '+' : '')}${fmt(ctx.parsed.y - 100, 2)}%`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.03)' },
+                ticks: { color: '#5c667a', font: { family: 'IBM Plex Mono', size: 10 } }
+              },
+              y: {
+                position: 'right',
+                grid: { color: 'rgba(255,255,255,0.03)' },
+                ticks: {
+                  color: '#5c667a',
+                  font: { family: 'IBM Plex Mono', size: 10 },
+                  callback: v => `${(v - 100 >= 0 ? '+' : '')}${(v - 100).toFixed(1)}%`
+                }
+              }
+            }
+          }
+        });
+      } else {
+        // Single Asset Metric Plot
+        const a = assets.find(x => x.symbol === curSym);
+        if (!a) return;
+
+        let hist = a.history || [];
+        if (timeframeDays > 0 && hist.length > timeframeDays) hist = hist.slice(-timeframeDays);
+
+        const labels = hist.map(h => h.day.slice(5)); // MM-DD
+        let dataSeries = [];
+        let seriesLabel = "";
+        let colorLine = "#8b5cf6";
+        let yFormatter = v => v;
+
+        if (plotMetric === "price") {
+          dataSeries = hist.map(h => h.price);
+          seriesLabel = `${a.symbol} Adoption Index ($)`;
+          yFormatter = v => '$' + v.toFixed(2);
+        } else if (plotMetric === "repos") {
+          dataSeries = hist.map(h => h.count);
+          seriesLabel = `${a.symbol} Daily Pushed Repos (GitHub Search API)`;
+          colorLine = a.color || "#8b5cf6";
+          yFormatter = v => v.toLocaleString();
+        } else if (plotMetric === "share") {
+          dataSeries = hist.map(h => h.share);
+          seriesLabel = `${a.symbol} Ecosystem Share (%)`;
+          colorLine = "#0ecb81";
+          yFormatter = v => v.toFixed(2) + '%';
+        }
+
+        const grad = ctx.createLinearGradient(0, 0, 0, 380);
+        grad.addColorStop(0, "rgba(139, 92, 246, 0.25)");
+        grad.addColorStop(1, "rgba(139, 92, 246, 0.0)");
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: seriesLabel,
+              data: dataSeries,
+              borderColor: colorLine,
+              backgroundColor: grad,
+              borderWidth: 2,
+              pointRadius: hist.length <= 10 ? 3 : 0,
+              pointHoverRadius: 5,
+              fill: true,
+              tension: 0.15
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: { color: '#8c97a8', font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 8 }
+              },
+              tooltip: {
+                backgroundColor: '#131722',
+                borderColor: '#232938',
+                borderWidth: 1,
+                titleColor: '#8c97a8',
+                bodyColor: '#eaecef',
+                bodyFont: { family: 'IBM Plex Mono', weight: 'bold' },
+                padding: 10,
+                callbacks: {
+                  label: ctx => ` ${ctx.dataset.label}: ${yFormatter(ctx.parsed.y)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.03)' },
+                ticks: { color: '#5c667a', font: { family: 'IBM Plex Mono', size: 10 } }
+              },
+              y: {
+                position: 'right',
+                grid: { color: 'rgba(255,255,255,0.03)' },
+                ticks: {
+                  color: '#5c667a',
+                  font: { family: 'IBM Plex Mono', size: 10 },
+                  callback: yFormatter
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    async function fetchOrderBook() {
+      try {
+        const data = await api(`/api/depth?symbol=${curSym}`);
+        $("obMidPrice").textContent = `$${fmt(data.price, 2)}`;
+
+        $("obAsks").innerHTML = (data.asks || []).map(a => `
+          <div class="ob-row">
+            <span class="num down" style="font-weight:600;">$${fmt(a.price, 2)}</span>
+            <span class="num">${fmt(a.amount, 2)}</span>
+            <span class="num" style="color:var(--text-tertiary);">${fmt(a.total, 0)}</span>
+            <div class="ob-depth-bar" style="background:var(--sell); width:${Math.min(100, a.amount * 2)}%;"></div>
+          </div>
+        `).join("");
+
+        $("obBids").innerHTML = (data.bids || []).map(b => `
+          <div class="ob-row">
+            <span class="num up" style="font-weight:600;">$${fmt(b.price, 2)}</span>
+            <span class="num">${fmt(b.amount, 2)}</span>
+            <span class="num" style="color:var(--text-tertiary);">${fmt(b.total, 0)}</span>
+            <div class="ob-depth-bar" style="background:var(--buy); width:${Math.min(100, b.amount * 2)}%;"></div>
+          </div>
+        `).join("");
+      } catch (e) {}
+    }
+
+    function setSide(side) {
+      curSide = side;
+      $("btnSideBuy").classList.toggle("buy-active", side === "buy");
+      $("btnSideSell").classList.toggle("sell-active", side === "sell");
+      $("btnSubmitOrder").className = `btn-trade-execute ${side}`;
+      $("btnSubmitOrder").textContent = `${side === 'buy' ? 'Buy' : 'Sell'} ${curSym}`;
+      updateBalanceLabel();
+      calcOrderUnits();
+    }
+
+    function updateBalanceLabel() {
+      if (!userPortfolio) return;
+      if (curSide === "buy") {
+        $("availBalanceLabel").textContent = `$${fmt(userPortfolio.cash)} USDT`;
+      } else {
+        const pos = userPortfolio.positions.find(p => p.symbol === curSym);
+        const qty = pos ? pos.units : 0;
+        $("availBalanceLabel").textContent = `${fmt(qty, 4)} ${curSym}`;
+      }
+    }
+
+    function applyFraction(frac) {
+      if (!userPortfolio) { openConnectModal(); return; }
+      if (curSide === "buy") {
+        $("orderInputPoints").value = (userPortfolio.cash * frac).toFixed(2);
+      } else {
+        const pos = userPortfolio.positions.find(p => p.symbol === curSym);
+        if (pos) $("orderInputPoints").value = (pos.value * frac).toFixed(2);
+      }
+      calcOrderUnits();
+    }
+
+    function calcOrderUnits() {
+      const a = assets.find(x => x.symbol === curSym);
+      const pts = parseFloat($("orderInputPoints").value) || 0;
+      if (a && pts > 0) {
+        $("estQtyLabel").textContent = `${fmt(pts / a.price, 4)} ${a.symbol}`;
+      } else {
+        $("estQtyLabel").textContent = `0.0000 ${curSym}`;
+      }
+    }
+
+    async function submitTradeOrder() {
+      if (!userToken) { openConnectModal(); return; }
+      const pts = parseFloat($("orderInputPoints").value) || 0;
+      if (pts <= 0) return;
+
+      try {
+        await api("/api/trade", {
+          method: "POST",
+          body: JSON.stringify({ symbol: curSym, side: curSide, points: pts })
+        });
+        $("orderInputPoints").value = "";
+        calcOrderUnits();
+        await loadUserData();
+        loadLeaderboard();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function switchLedgerTab(tab, el) {
+      document.querySelectorAll('.ledger-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      $("tabPositionsView").style.display = tab === "positions" ? "block" : "none";
+      $("tabHistoryView").style.display = tab === "history" ? "block" : "none";
+      $("tabLeaderboardView").style.display = tab === "leaderboard" ? "block" : "none";
+    }
+
+    async function loadUserData() {
+      try {
+        const p = await api("/api/portfolio");
+        userPortfolio = p;
+
+        const addr = p.token;
+        const shortAddr = addr.length > 12 ? (addr.slice(0, 6) + "..." + addr.slice(-4)) : addr;
+        $("userAddressLabel").textContent = shortAddr;
+        $("userBalanceLabel").textContent = `$${fmt(p.total)} USDT`;
+        $("btnConnect").textContent = "Account";
+        updateBalanceLabel();
+
+        $("posCount").textContent = p.positions.length;
+        const ptbody = $("positionsTableBody");
+        if (p.positions.length > 0) {
+          ptbody.innerHTML = p.positions.map(pos => `
+            <tr>
+              <td><b>${pos.symbol}</b> <span style="color:var(--text-secondary); font-size:11px;">(${pos.name})</span></td>
+              <td class="num">${fmt(pos.units, 4)}</td>
+              <td class="num">$${fmt(pos.avg_cost, 2)}</td>
+              <td class="num">$${fmt(pos.current_price, 2)}</td>
+              <td class="num" style="font-weight:600;">$${fmt(pos.value, 2)}</td>
+              <td class="num ${pos.pnl >= 0 ? 'up' : 'down'}" style="text-align:right; font-weight:600;">
+                ${pos.pnl >= 0 ? '+' : ''}$${fmt(pos.pnl, 2)} (${pos.pnl_pct >= 0 ? '+' : ''}${fmt(pos.pnl_pct, 2)}%)
+              </td>
+            </tr>
+          `).join("");
+        } else {
+          ptbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:20px;">No open positions. Available USDT: $${fmt(p.cash)}.</td></tr>`;
+        }
+
+        const htbody = $("historyTableBody");
+        if (p.recent_trades.length > 0) {
+          htbody.innerHTML = p.recent_trades.map(t => `
+            <tr>
+              <td style="color:var(--text-tertiary); font-size:11px;">${t.ts}</td>
+              <td><b>${t.symbol}/USDT</b></td>
+              <td><span class="num ${t.side === 'buy' ? 'up' : 'down'}">${t.side.toUpperCase()}</span></td>
+              <td class="num">${fmt(t.units, 4)}</td>
+              <td class="num">$${fmt(t.price, 2)}</td>
+              <td class="num" style="text-align:right;">$${fmt(t.total, 2)}</td>
+            </tr>
+          `).join("");
+        }
+      } catch (err) {
+        userToken = "";
+        localStorage.removeItem("tx_address");
+      }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const board = await api("/api/leaderboard");
+        const tbody = $("leaderboardTableBody");
+        tbody.innerHTML = board.map((b, i) => `
+          <tr>
+            <td>#${i + 1}</td>
+            <td class="num">${b.address}</td>
+            <td class="num" style="font-weight:600;">$${fmt(b.total, 2)} USDT</td>
+            <td class="num ${b.return_pct >= 0 ? 'up' : 'down'}" style="text-align:right; font-weight:600;">
+              ${b.return_pct >= 0 ? '+' : ''}${fmt(b.return_pct, 2)}%
+            </td>
+          </tr>
+        `).join("") || `<tr><td colspan="4" style="text-align:center; color:var(--text-tertiary);">No active traders.</td></tr>`;
+      } catch (e) {}
+    }    async function fetchOracleStatus() {
+      try {
+        const o = await api("/api/oracle_status");
+        const bh = $("blockHeight");
+        if (bh) bh.textContent = "BLK #" + (o.network?.block_height || "?");
+      } catch(e) {}
+    }
+
+
+    init();
+  </script>
+</body>
+</html>
