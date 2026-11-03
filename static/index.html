@@ -868,6 +868,12 @@
         <div>• <b>2.0x Median Clip:</b> Daily activity surges are clipped to 2.0x recent 14-day median, neutralizing sudden bot bursts.</div>
         <div>• <b>Account Age & Fork Filter:</b> Forked repositories and newly minted disposable accounts are stripped from calculations.</div>
         <div>• <b>7-Day Moving Window:</b> Naturalizes weekend activity patterns to measure institutional developer momentum.</div>
+        <div style="margin-top:8px; padding-top:6px; border-top:1px solid #332b45;"><b>3. Transparent Protocol Tokenomics:</b></div>
+        <div>• <b>Strict Hard Cap:</b> 20,502,006 DEK</div>
+        <div>• <b>Total Minted to Date:</b> <span id="supplyMinted" class="num" style="color:#10b981; font-weight:700;">0.00</span> DEK</div>
+        <div>• <b>Remaining Unmined:</b> <span id="supplyRemaining" class="num" style="color:#a78bfa; font-weight:700;">20,502,006.00</span> DEK</div>
+        <div>• <b>Burned (Dead Address):</b> <span id="supplyBurned" class="num" style="color:#f87171; font-weight:700;">0.00</span> DEK</div>
+        <div>• <b>Current Epoch Block:</b> <span id="supplyBlockHeight" class="num" style="color:#fff; font-weight:700;">#7</span></div>
       </div>
       <button class="btn-brand" onclick="closeOracleModal()" style="width:100%;">Close Architecture Overview</button>
     </div>
@@ -1009,7 +1015,16 @@
       $(id).classList.remove("show");
       document.body.classList.remove("modal-open");
     }
-    function openOracleModal() { openModal("oracleModal"); }
+    async function openOracleModal() {
+      try {
+        const t = await api("/api/tokenomics");
+        if ($("supplyMinted")) $("supplyMinted").textContent = fmt(t.total_minted, 2);
+        if ($("supplyRemaining")) $("supplyRemaining").textContent = fmt(t.remaining_unmined, 2);
+        if ($("supplyBurned")) $("supplyBurned").textContent = fmt(t.total_burned, 2);
+        if ($("supplyBlockHeight")) $("supplyBlockHeight").textContent = "#" + t.block_height;
+      } catch (e) {}
+      openModal("oracleModal");
+    }
     function closeOracleModal() { closeModal("oracleModal"); }
     function openGenesisModal() { fetchGenesis(); openModal("genesisModal"); }
     function closeGenesisModal() { closeModal("genesisModal"); }

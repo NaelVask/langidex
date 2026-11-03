@@ -89,6 +89,41 @@ def burn_info():
         "status": "Unspendable. No private key exists."
     }
 
+def tokenomics_summary():
+    """Returns real-time transparent supply metrics across the entire protocol."""
+    with conn() as c:
+        minted_row = c.execute("""
+            SELECT COALESCE(SUM(delta), 0.0) as total_minted
+            FROM dek_ledger
+            WHERE delta > 0 AND (reason LIKE 'Oracle block reward%' OR reason LIKE 'Trade incentive%')
+        """).fetchone()
+        total_minted = minted_row["total_minted"] if minted_row else 0.0
+
+        dead_row = c.execute("SELECT dek FROM users WHERE token=?", (BURN_ADDRESS,)).fetchone()
+        total_burned = dead_row["dek"] if dead_row and dead_row["dek"] else 0.0
+
+        users_row = c.execute("SELECT COALESCE(SUM(dek), 0.0) as active_total FROM users WHERE token != ?", (BURN_ADDRESS,)).fetchone()
+        active_holdings = users_row["active_total"] if users_row else 0.0
+
+        blocks_row = c.execute("SELECT COUNT(DISTINCT day) as d FROM raw_counts WHERE source='github'").fetchone()
+        block_height = blocks_row["d"] if blocks_row else 0
+
+        remaining_unmined = max(0.0, DEK_MAX_SUPPLY - total_minted)
+        circulating = max(0.0, total_minted - total_burned)
+
+    return {
+        "hard_cap": DEK_MAX_SUPPLY,
+        "total_minted": round(total_minted, 4),
+        "total_burned": round(total_burned, 4),
+        "circulating_supply": round(circulating, 4),
+        "remaining_unmined": round(remaining_unmined, 4),
+        "active_user_holdings": round(active_holdings, 4),
+        "block_height": block_height,
+        "block_reward": DEK_PER_ORACLE_DAY,
+        "burn_address": BURN_ADDRESS,
+        "denomination": BASE_DENOMINATION
+    }
+
 def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str = None) -> float:
     """Awards the daily block reward (50 DEK) to an oracle validator node for a verified epoch."""
     with conn() as c:

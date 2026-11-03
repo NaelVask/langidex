@@ -244,4 +244,10 @@ def burn_address_info(request: Request):
     """Returns the protocol burn address and total DEK burned."""
     return trading.burn_info()
 
+@app.get("/api/tokenomics")
+@limiter.limit("20/minute")
+def tokenomics(request: Request):
+    """Returns transparent real-time token supply, minted metrics, and remaining allocation."""
+    return trading.tokenomics_summary()
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
