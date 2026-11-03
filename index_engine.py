@@ -7,7 +7,7 @@
  5. price = 100 * share / share on day one                 (a growth index, starts at 100)
 
  Additional sybil defences enforced at collection time (collector.py):
-   - fork:false  — forked repos never counted
+   - fork:false: forked repos never counted
    - 0-star repos: future oracle layer will weight these at 0.3x
    - account age <90 days: future oracle layer weights these at 0.01x
    - multi-source consensus: median of GitHub + GitLab + npm + PyPI + crates.io (planned)

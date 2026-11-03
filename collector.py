@@ -11,10 +11,10 @@ weighted composite count per language per day. This way no single source
 can be spoofed to move the index.
 
 Source weights (sum = 1.0):
-  github  → 0.60   (active repos — primary signal)
-  pypi    → 0.20   (Python only — download volume)
-  npm     → 0.20   (JS/TS only — download volume)
-  crates  → 0.20   (Rust only — download volume)
+  github  -> 0.60   (active repos: primary signal)
+  pypi    -> 0.20   (Python only: download volume)
+  npm     -> 0.20   (JS/TS only: download volume)
+  crates  -> 0.20   (Rust only: download volume)
 
 For languages without a registry source the github weight is kept at 1.0.
 """
@@ -137,7 +137,7 @@ CRATES_PACKAGES = [
 def count_crates_downloads():
     """Returns total recent_downloads across representative crates.
     crates.io does not expose per-day stats via REST; we use recent_downloads
-    as a proxy (it reflects the last 90 days normalised — good enough for
+    as a proxy (it reflects the last 90 days normalised, good enough for
     relative comparison)."""
     total = 0
     h = {"User-Agent": "LangIndex-Collector (contact@langindex.example)"}
@@ -196,7 +196,7 @@ def collect(day):
 
     # ── 3. Compute composite counts and store as source='composite' ────────
     # Normalise registry signals so they are on the same scale as GitHub
-    # counts (rough: 1 download ≈ 0.0001 repos — just a scaling factor
+    # counts (rough: 1 download approx 0.0001 repos: just a scaling factor
     # to make the composite number comparable, the index formula then
     # takes ratios so absolute scale cancels out).
     SCALE = 0.0001
@@ -204,7 +204,7 @@ def collect(day):
     with conn() as c:
         for sym in LANGUAGES:
             if sym not in REGISTRY_MAP:
-                # No registry source — composite == github
+                # No registry source: composite == github
                 composite = github_counts.get(sym, 0)
             else:
                 registry_id, gw, rw = REGISTRY_MAP[sym]
