@@ -2,6 +2,6 @@
 techx.db
 __pycache__/
 *.pyc
-
 *.db-wal
 *.db-shm
+tor_service/
