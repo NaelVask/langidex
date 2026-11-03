@@ -5,7 +5,7 @@ Strict consensus: Missing an epoch means the reward window is closed.
 """
 import os, sys, datetime as dt, hashlib
 from db import init, conn, backup_db
-from collector import collect
+from collector import collect, verify_and_record_proofs
 from index_engine import rebuild_prices
 from trading import award_oracle_reward, tokenomics_summary
 
@@ -70,16 +70,20 @@ def run_miner():
                 print("    Next epoch block window opens after 00:00 UTC.")
                 return
 
-    print("\n[1/4] Ingesting multi-source telemetry (GitHub, PyPI, npm, crates.io)...")
+    print("\n[1/5] Ingesting multi-source telemetry (GitHub, PyPI, npm, crates.io)...")
     collect(epoch_day)
 
-    print("\n[2/4] Computing anti-sybil filters and rebuilding index prices...")
+    print("\n[2/5] Computing anti-sybil filters and rebuilding index prices...")
     rebuild_prices()
 
-    print("\n[3/4] Minting validator block reward...")
+    print("\n[3/5] Running PoTOP proof-of-telemetry verification (Git Smart HTTP)...")
+    proof_count = verify_and_record_proofs(wallet_addr, epoch_day)
+    print(f"      {proof_count} repository commit proofs sealed into the attestation ledger.")
+
+    print("\n[4/5] Minting validator block reward...")
     latest_bal = award_oracle_reward(wallet_addr, epoch_day)
 
-    print("\n[4/4] Creating rolling ACID ledger backup...")
+    print("\n[5/5] Creating rolling ACID ledger backup...")
     backup_file = backup_db()
 
     summary = tokenomics_summary()

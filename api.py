@@ -259,6 +259,47 @@ def oracle_status(request: Request):
         }
     }
 
+@app.get("/api/verified_proofs")
+@limiter.limit("30/minute")
+def verified_proofs(
+    request: Request,
+    symbol: Optional[str] = Query(None),
+    limit: int = Query(25, ge=1, le=200)
+):
+    """PoTOP Attestation Ledger: returns cryptographically verified repo proofs."""
+    with conn() as c:
+        if symbol:
+            rows = c.execute(
+                """SELECT epoch_day, symbol, repo_name, commit_hash, tree_hash,
+                          verifier_node, merkle_root, verified_at
+                   FROM verified_proofs
+                   WHERE symbol = ?
+                   ORDER BY verified_at DESC
+                   LIMIT ?""",
+                (symbol.upper(), limit)
+            ).fetchall()
+        else:
+            rows = c.execute(
+                """SELECT epoch_day, symbol, repo_name, commit_hash, tree_hash,
+                          verifier_node, merkle_root, verified_at
+                   FROM verified_proofs
+                   ORDER BY verified_at DESC
+                   LIMIT ?""",
+                (limit,)
+            ).fetchall()
+
+        total = c.execute("SELECT COUNT(*) as n FROM verified_proofs").fetchone()["n"]
+        latest = c.execute(
+            "SELECT merkle_root, epoch_day FROM verified_proofs ORDER BY verified_at DESC LIMIT 1"
+        ).fetchone()
+
+    return {
+        "total_verified": total,
+        "latest_merkle_root": latest["merkle_root"] if latest else None,
+        "latest_epoch": latest["epoch_day"] if latest else None,
+        "proofs": [dict(r) for r in rows]
+    }
+
 @app.get("/api/burn_address")
 @limiter.limit("10/minute")
 def burn_address_info(request: Request):

@@ -733,6 +733,7 @@
         <span class="ledger-tab active" onclick="switchLedgerTab('positions', this)">Holdings & Ledger (<span id="posCount">0</span>)</span>
         <span class="ledger-tab" onclick="switchLedgerTab('history', this)">Execution Log</span>
         <span class="ledger-tab" onclick="switchLedgerTab('leaderboard', this)">Leaderboard</span>
+        <span class="ledger-tab" onclick="switchLedgerTab('proofs', this); loadVerifiedProofs()">Verified Repos [PoTOP] <span id="proofCount" style="color:var(--buy); font-size:10px;"></span></span>
       </div>
 
       <!-- Bottom Tables -->
@@ -784,6 +785,29 @@
               </tr>
             </thead>
             <tbody id="leaderboardTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="tabProofsView" style="display:none;">
+          <div style="padding:8px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; font-size:11px; color:var(--text-tertiary);">
+            <span id="potopMeta">Loading attestation ledger...</span>
+            <span id="potopMerkle" style="font-family:var(--font-mono); color:var(--brand-purple);"></span>
+          </div>
+          <table class="market-table">
+            <thead>
+              <tr>
+                <th>Epoch</th>
+                <th>Asset</th>
+                <th>Verified Repository</th>
+                <th>Commit SHA-1</th>
+                <th>Tree Hash</th>
+                <th>Verifier Node</th>
+                <th style="text-align:right;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="proofsTableBody">
+              <tr><td colspan="7" style="text-align:center; color:var(--text-tertiary); padding:24px;">No proofs yet. Run the miner to seal epoch attestations.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -1543,9 +1567,54 @@
     function switchLedgerTab(tab, el) {
       document.querySelectorAll('.ledger-tab').forEach(t => t.classList.remove('active'));
       el.classList.add('active');
-      $("tabPositionsView").style.display = tab === "positions" ? "block" : "none";
-      $("tabHistoryView").style.display = tab === "history" ? "block" : "none";
+      $("tabPositionsView").style.display   = tab === "positions"   ? "block" : "none";
+      $("tabHistoryView").style.display     = tab === "history"     ? "block" : "none";
       $("tabLeaderboardView").style.display = tab === "leaderboard" ? "block" : "none";
+      $("tabProofsView").style.display      = tab === "proofs"      ? "block" : "none";
+    }
+
+    let _proofsLoaded = false;
+    async function loadVerifiedProofs(forceRefresh) {
+      if (_proofsLoaded && !forceRefresh) return;
+      const tbody    = $("proofsTableBody");
+      const meta     = $("potopMeta");
+      const merkleEl = $("potopMerkle");
+      try {
+        const data = await api("/api/verified_proofs?limit=50");
+        _proofsLoaded = true;
+        const count = $("proofCount");
+        if (count) count.textContent = data.total_verified > 0 ? data.total_verified + " sealed" : "";
+        if (meta)  meta.textContent  = data.total_verified + " proofs sealed across all epochs";
+        if (merkleEl && data.latest_merkle_root) {
+          merkleEl.textContent = "Latest Merkle: " + data.latest_merkle_root.slice(0, 24) + "...";
+        }
+        if (!data.proofs || data.proofs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-tertiary); padding:24px;">No proofs yet. Run the miner node to seal epoch attestations.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.proofs.map(p => {
+          const shortCommit = p.commit_hash ? p.commit_hash.slice(0, 12) + "..." : "N/A";
+          const shortTree   = p.tree_hash   ? p.tree_hash.slice(0, 12)   + "..." : "N/A";
+          const shortNode   = p.verifier_node ? p.verifier_node.slice(0, 10) + "..." : "N/A";
+          const repoLink    = p.repo_name
+            ? '<a href="https://github.com/' + p.repo_name + '" target="_blank" rel="noopener" style="color:var(--brand-purple); text-decoration:none;">' + p.repo_name + '</a>'
+            : "N/A";
+          const statusDot = p.commit_hash
+            ? '<span style="color:var(--buy);">VERIFIED</span>'
+            : '<span style="color:var(--sell);">FAILED</span>';
+          return '<tr>' +
+            '<td class="num" style="color:var(--text-tertiary); font-size:11px;">' + p.epoch_day + '</td>' +
+            '<td><b>' + p.symbol + '</b></td>' +
+            '<td style="font-family:var(--font-mono); font-size:11px;">' + repoLink + '</td>' +
+            '<td class="num" style="font-size:11px; color:var(--brand-purple);" title="' + p.commit_hash + '">' + shortCommit + '</td>' +
+            '<td class="num" style="font-size:11px; color:var(--text-secondary);" title="' + p.tree_hash + '">' + shortTree + '</td>' +
+            '<td class="num" style="font-size:11px;" title="' + p.verifier_node + '">' + shortNode + '</td>' +
+            '<td style="text-align:right; font-weight:600;">' + statusDot + '</td>' +
+            '</tr>';
+        }).join("");
+      } catch(e) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--sell); padding:20px;">Failed to load attestation ledger.</td></tr>';
+      }
     }
 
     async function loadUserData() {
