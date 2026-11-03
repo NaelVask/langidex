@@ -1,6 +1,6 @@
-# LangIndex
+# Langdex
 
-LangIndex is an open developer adoption index and deterministic market protocol. It measures programming language utilization across public version control systems and software package registries, computing a continuous normalized index for each asset.
+Langdex is an open developer adoption index and deterministic market protocol. It measures programming language utilization across public version control systems and software package registries, computing a continuous normalized index for each asset.
 
 ## System Architecture
 
@@ -79,7 +79,7 @@ User trade orders do not shift $P_{i,t}$. The quotation reflects code production
 
 The genesis block is mathematically anchored to SHA-256 state:
 
-- Protocol: LangIndex Protocol - Developer Adoption Index
+- Protocol: Langdex Protocol - Developer Adoption Index
 - Genesis Hash: `87be4735c1f0c9f85c5e2822b893c097dfa9690ccd4bfa95374036b537090def`
 - Signer Public Key: `0x7a892bF584C8bEb8f682057F7392aA7b25F18dE0`
 
@@ -96,24 +96,23 @@ curl -s http://localhost:8000/api/genesis | jq .
 
 ### Installation
 ```bash
-git clone https://github.com/NaelVask/langindex.git
-cd langindex
+git clone https://github.com/NaelVask/langidex.git
+cd langidex
 pip install -r requirements.txt
 ```
+On Windows, you can also double-click `install.bat`.
 
-### Ingestion and Index Calculation
+### Running the Validator Node (Mining DEK)
+To verify daily open-source telemetry and earn 50.00 DEK per verified epoch block:
+
 ```bash
-# Optional: Set GITHUB_TOKEN for 30 req/min rate limit instead of default 10 req/min
-export GITHUB_TOKEN="ghp_your_token_here"
-
-# Collect telemetry for the preceding 7 days
-python collector.py 7
-
-# Rebuild index series
-python index_engine.py
+python miner.py
 ```
+On Windows, you can simply double-click `StartMiner.bat`.
 
-### Start Local Node
+The miner prompts once for your wallet address (or 12-word recovery phrase), remembers it, verifies git and registry telemetry, and credits the 50.00 DEK reward directly to your balance.
+
+### Start Local Node / Trading Terminal
 ```bash
 uvicorn api:app --host 127.0.0.1 --port 8000
 ```
@@ -124,13 +123,13 @@ To serve without dependency on public DNS or commercial hosting providers:
 
 Add to `torrc`:
 ```text
-HiddenServiceDir /var/lib/tor/langindex_service/
+HiddenServiceDir /var/lib/tor/langdex_service/
 HiddenServicePort 80 127.0.0.1:8000
 ```
 
 Start the Tor daemon and read the generated `.onion` hostname:
 ```bash
-cat /var/lib/tor/langindex_service/hostname
+cat /var/lib/tor/langdex_service/hostname
 ```
 
 ## Support Protocol Development & On-Chain Liquidity
