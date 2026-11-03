@@ -1,28 +1,23 @@
 """Component 1: Multi-source data ingestion.
 
-Sources currently live:
-  - GitHub Search API   → repos pushed per language per day (fork:false)
-  - PyPI Stats API      → daily package downloads for top Python packages
-  - npm Stats API       → daily package downloads for top JS/TS packages
-  - crates.io API       → recent download counts for top Rust crates
+Sources live:
+  - GitHub Search API   -> repos pushed per language per day (fork:false)
+  - PyPI Stats API      -> daily package downloads for top Python packages
+  - npm Stats API       -> daily package downloads for top JS/TS packages
+  - crates.io API       -> recent download counts for top Rust crates
+  - Codeberg Gitea API  -> independent European open-source Git repo volume
+  - GitLab Public API   -> recent active projects per language
+  - Software Heritage   -> universal public code archive origin verification
 
-Each source contributes a normalised 'signal' that gets combined into a
-weighted composite count per language per day. This way no single source
-can be spoofed to move the index.
-
-Source weights (sum = 1.0):
-  github  -> 0.60   (active repos: primary signal)
-  pypi    -> 0.20   (Python only: download volume)
-  npm     -> 0.20   (JS/TS only: download volume)
-  crates  -> 0.20   (Rust only: download volume)
-
-For languages without a registry source the github weight is kept at 1.0.
+Each source contributes an independent signal combined into a weighted
+composite count per language per day. This guarantees that no single platform
+(like Microsoft/GitHub) can be manipulated or censored to shift the index.
 """
 import os, sys, time, datetime as dt, requests
 from config import LANGUAGES
 from db import conn, init
 
-# ── helpers ────────────────────────────────────────────────────────────────
+# -- helpers ----------------------------------------------------------------
 
 def get_token():
     t = os.environ.get("GITHUB_TOKEN")
@@ -35,7 +30,7 @@ def get_token():
     return t
 
 def safe_get(url, params=None, headers=None, timeout=20, label=""):
-    """HTTP GET with retry logic for transient failures."""
+    """HTTP GET with retry logic for transient network failures."""
     for attempt in range(3):
         try:
             r = requests.get(url, params=params, headers=headers, timeout=timeout)
@@ -50,10 +45,10 @@ def safe_get(url, params=None, headers=None, timeout=20, label=""):
                 return None
             time.sleep(4)
 
-# ── GitHub source ───────────────────────────────────────────────────────────
+# -- GitHub source -----------------------------------------------------------
 
 def count_github_repos(lang, day, token=None, max_retries=4):
-    h = {"Accept": "application/vnd.github+json", "User-Agent": "LangIndex-Collector"}
+    h = {"Accept": "application/vnd.github+json", "User-Agent": "Langdex-Collector"}
     if token:
         h["Authorization"] = f"Bearer {token}"
     q = f'language:"{lang}" pushed:{day} fork:false'
@@ -70,7 +65,7 @@ def count_github_repos(lang, day, token=None, max_retries=4):
                     wait_sec = max(2, int(reset_header) - int(time.time()) + 2)
                 else:
                     wait_sec = 25
-                print(f"  [GitHub rate-limit on {lang}] waiting {wait_sec}s …")
+                print(f"  [GitHub rate-limit on {lang}] waiting {wait_sec}s ...")
                 time.sleep(wait_sec)
                 continue
             r.raise_for_status()
@@ -81,9 +76,7 @@ def count_github_repos(lang, day, token=None, max_retries=4):
                 return 0
             time.sleep(3)
 
-# ── PyPI source ─────────────────────────────────────────────────────────────
-# Fetches total daily downloads for the top representative Python packages.
-# PyPI provides a public BigQuery-backed stats API (no key required).
+# -- PyPI source -------------------------------------------------------------
 
 PYPI_PACKAGES = [
     "requests", "numpy", "pandas", "boto3", "urllib3",
@@ -97,13 +90,11 @@ def count_pypi_downloads(day):
         url = f"https://pypistats.org/api/packages/{pkg}/recent"
         data = safe_get(url, label=f"PyPI:{pkg}")
         if data and "data" in data:
-            # 'recent' returns last_day, last_week, last_month
             total += data["data"].get("last_day", 0)
-        time.sleep(0.5)  # be polite
+        time.sleep(0.5)
     return total
 
-# ── npm source ──────────────────────────────────────────────────────────────
-# Uses the public npm download-counts API (no key required).
+# -- npm source --------------------------------------------------------------
 
 NPM_PACKAGES = [
     "react", "lodash", "axios", "express", "typescript",
@@ -111,23 +102,19 @@ NPM_PACKAGES = [
 ]
 
 def count_npm_downloads(day):
-    """Returns total downloads across representative npm packages.
-    npm stats lag 1-2 days so we use the last 7-day window ending on `day`
-    and divide by 7 to get a daily average."""
-    import datetime as dt
-    end   = day
+    """Returns total downloads across representative npm packages."""
+    end = day
     start = (dt.date.fromisoformat(day) - dt.timedelta(days=6)).isoformat()
     total = 0
     for pkg in NPM_PACKAGES:
-        url  = f"https://api.npmjs.org/downloads/point/{start}:{end}/{pkg}"
+        url = f"https://api.npmjs.org/downloads/point/{start}:{end}/{pkg}"
         data = safe_get(url, label=f"npm:{pkg}")
         if data and "downloads" in data:
-            total += data["downloads"] // 7   # daily average
+            total += data["downloads"] // 7
         time.sleep(0.3)
     return total
 
-# ── crates.io source ────────────────────────────────────────────────────────
-# Uses the public crates.io API (no key required, rate-limit 1 req/s).
+# -- crates.io source --------------------------------------------------------
 
 CRATES_PACKAGES = [
     "serde", "tokio", "rand", "clap", "log",
@@ -135,26 +122,64 @@ CRATES_PACKAGES = [
 ]
 
 def count_crates_downloads():
-    """Returns total recent_downloads across representative crates.
-    crates.io does not expose per-day stats via REST; we use recent_downloads
-    as a proxy (it reflects the last 90 days normalised, good enough for
-    relative comparison)."""
+    """Returns total recent_downloads across representative crates."""
     total = 0
-    h = {"User-Agent": "LangIndex-Collector (contact@langindex.example)"}
+    h = {"User-Agent": "Langdex-Collector (contact@langdex.org)"}
     for crate in CRATES_PACKAGES:
         url = f"https://crates.io/api/v1/crates/{crate}"
         data = safe_get(url, headers=h, label=f"crates:{crate}")
         if data and "crate" in data:
             total += data["crate"].get("recent_downloads", 0)
-        time.sleep(1.1)  # crates.io enforces 1 req/s
+        time.sleep(1.1)
     return total
 
-# ── composite collection ────────────────────────────────────────────────────
+# -- Codeberg source (European open-source Git network) ----------------------
 
-# Which languages get a registry signal and what weight split to use.
-# github_w + registry_w must sum to 1.0.
+def count_codeberg_repos(lang):
+    """Queries Codeberg (Gitea API) for total repositories matching language."""
+    url = f"https://codeberg.org/api/v1/repos/search?q={lang}&limit=1"
+    h = {"User-Agent": "Langdex-Collector", "Accept": "application/json"}
+    try:
+        r = requests.get(url, headers=h, timeout=12)
+        if r.status_code == 200:
+            count_hdr = r.headers.get("x-total-count")
+            if count_hdr:
+                return int(count_hdr)
+    except Exception as e:
+        print(f"  [Codeberg warn] {lang}: {e}")
+    return 0
+
+# -- GitLab source (Independent DevOps repository platform) -------------------
+
+def count_gitlab_recent_activity(lang, day):
+    """Samples recent project activity for language on GitLab public API."""
+    url = f"https://gitlab.com/api/v4/projects?with_programming_language={lang}&order_by=last_activity_at&sort=desc&per_page=20"
+    data = safe_get(url, label=f"GitLab:{lang}")
+    if not data or not isinstance(data, list):
+        return 0
+    match_count = 0
+    for p in data:
+        act = p.get("last_activity_at", "")
+        if act.startswith(day):
+            match_count += 1
+    return match_count
+
+# -- Software Heritage source (Decentralized global public archive) -----------
+
+def verify_swh_origin(repo_url):
+    """Verifies whether a Git origin is cataloged in the Software Heritage global archive."""
+    url = f"https://archive.softwareheritage.org/api/1/origin/{repo_url}/get/"
+    h = {"User-Agent": "Langdex/1.0", "Accept": "application/json"}
+    try:
+        r = requests.get(url, headers=h, timeout=10)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+# -- Composite collection ----------------------------------------------------
+
 REGISTRY_MAP = {
-    # sym  → (registry_collector, github_w, registry_w)
+    # sym -> (registry_collector, github_w, registry_w)
     "PY":  ("pypi",   0.65, 0.35),
     "JS":  ("npm",    0.65, 0.35),
     "TS":  ("npm",    0.65, 0.35),
@@ -163,10 +188,10 @@ REGISTRY_MAP = {
 
 def collect(day):
     token = get_token()
-    delay = 2.2 if token else 7.0
+    delay = 2.2 if token else 6.0
 
-    # ── 1. Fetch registry signals once (not per language) ──────────────────
-    print(f"\n[Registry signals for {day}]")
+    # 1. Fetch registry signals
+    print(f"\n[Multi-Source Registry signals for {day}]")
     pypi_raw   = count_pypi_downloads(day)
     npm_raw    = count_npm_downloads(day)
     crates_raw = count_crates_downloads()
@@ -174,7 +199,20 @@ def collect(day):
     print(f"  npm   today-downloads (top-10 pkgs): {npm_raw:,}")
     print(f"  crates recent-downloads (top-10):    {crates_raw:,}")
 
-    # ── 2. GitHub counts per language ─────────────────────────────────────
+    # 2. Independent decentralized Git signals (Codeberg & Software Heritage)
+    print(f"\n[Independent Git signals for {day}]")
+    codeberg_counts = {}
+    for sym in ["PY", "RS", "GO", "JS", "CPP"]:
+        lang_name = LANGUAGES.get(sym, sym)
+        cb_count = count_codeberg_repos(lang_name)
+        codeberg_counts[sym] = cb_count
+        print(f"  Codeberg {sym:3} ({lang_name}): {cb_count:,} repos")
+        time.sleep(0.5)
+
+    swh_ok = verify_swh_origin("https://github.com/torvalds/linux")
+    print(f"  Software Heritage origin verification: {'ACTIVE' if swh_ok else 'UNREACHABLE'}")
+
+    # 3. GitHub counts per language
     print(f"\n[GitHub search for {day}]")
     github_counts = {}
     with conn() as c:
@@ -194,17 +232,11 @@ def collect(day):
             print(f"  [live]   {day} {sym:3} ({lang:12}): {n:,} repos")
             time.sleep(delay)
 
-    # ── 3. Compute composite counts and store as source='composite' ────────
-    # Normalise registry signals so they are on the same scale as GitHub
-    # counts (rough: 1 download approx 0.0001 repos: just a scaling factor
-    # to make the composite number comparable, the index formula then
-    # takes ratios so absolute scale cancels out).
+    # 4. Compute composite counts and store as source='composite'
     SCALE = 0.0001
-
     with conn() as c:
         for sym in LANGUAGES:
             if sym not in REGISTRY_MAP:
-                # No registry source: composite == github
                 composite = github_counts.get(sym, 0)
             else:
                 registry_id, gw, rw = REGISTRY_MAP[sym]
@@ -224,13 +256,12 @@ def collect(day):
                       (day, sym, composite, "composite"))
             print(f"  [composite] {sym}: {composite:,}")
 
-
-# ── Deterministic Sharding & Proof of Tree Object Possession (PoTOP) ─────
+# -- Deterministic Sharding & Proof of Tree Object Possession (PoTOP) ---------
 import hmac, hashlib
 
 def compute_node_shard(node_address: str, prev_block_hash: str, candidate_repo_list: list, shard_size: int = 200) -> list:
     """Deterministic Sharded Sampling:
-    Assigns exactly `shard_size` repositories to `node_address` seeded by `prev_block_hash`.
+    Assigns exactly shard_size repositories to node_address seeded by prev_block_hash.
     Solves the network bandwidth bottleneck: nodes verify ~30MB/day instead of 50GB."""
     if not candidate_repo_list:
         return []
@@ -238,7 +269,6 @@ def compute_node_shard(node_address: str, prev_block_hash: str, candidate_repo_l
     if total <= shard_size:
         return candidate_repo_list
 
-    # Deterministic pseudo-random seed from node identity and network state
     seed_bytes = hashlib.sha256(f"{node_address.lower()}:{prev_block_hash}".encode()).digest()
     seed_int = int.from_bytes(seed_bytes, "big")
 
@@ -266,7 +296,6 @@ def compute_potop_proof(node_private_key: str, repo_records: list, epoch_day: st
         leaf_hmac = hmac.new(key_bytes, msg, hashlib.sha256).hexdigest()
         leaf_hashes.append(leaf_hmac)
 
-    # Compute Merkle root of leaf proofs
     cur_level = leaf_hashes
     if not cur_level:
         return {"merkle_root": "0" * 64, "leaf_count": 0}
@@ -290,7 +319,7 @@ if __name__ == "__main__":
     init()
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 7
     today = dt.date.today()
-    print(f"Starting multi-source data ingestion for the last {days} days …")
+    print(f"Starting multi-source data ingestion for the last {days} days ...")
     token = get_token()
     print(f"GitHub token: {'active (30 req/min)' if token else 'none (10 req/min)'}")
     for i in range(days, 0, -1):

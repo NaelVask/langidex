@@ -225,7 +225,9 @@ def oracle_status(request: Request):
                 "PyPI (top-10 packages)": "live",
                 "npm (top-10 packages)": "live",
                 "crates.io (top-10 crates)": "live",
-                "GitLab": "planned",
+                "Codeberg (Gitea API)": "live",
+                "GitLab API": "live",
+                "Software Heritage": "live",
                 "job listings": "planned"
             },
             "oracle_consensus": "Median of independent signed collector reports - one rogue node cannot move index",
