@@ -1,15 +1,25 @@
-﻿"""Component 4: HTTP API + serves the web app. Run: uvicorn api:app --reload"""
+"""Component 4: HTTP API + serves the web app. Run: uvicorn api:app --reload"""
 import hashlib, time
 from typing import Optional
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from config import LANGUAGES, LANGUAGE_META, START_CASH
 from db import conn, init
 import trading
 
 init()
+
+# Rate limiter: 60 requests per minute per IP address.
+# Prevents DDoS floods against the .onion endpoint.
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 app = FastAPI(title="Langdex Protocol - Developer Adoption Index")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 class Signup(BaseModel):
     name: Optional[str] = "Trader"
@@ -23,7 +33,10 @@ class Order(BaseModel):
 class Deposit(BaseModel):
     amount: float
 
-# Satoshi-style Genesis block manifest & cryptographic hash proof
+class Burn(BaseModel):
+    amount: float
+
+# Genesis block manifest and cryptographic hash proof
 GENESIS_BLOCK = {
     "protocol": "Langdex Protocol - Developer Adoption Index",
     "genesis_timestamp": "2026-11-02T19:30:00Z",
@@ -40,22 +53,20 @@ def guard(fn, *a):
     except ValueError as e: raise HTTPException(400, str(e))
 
 @app.get("/api/assets")
-def assets():
+@limiter.limit("30/minute")
+def assets(request: Request):
     with conn() as c:
         src = c.execute("SELECT DISTINCT source FROM raw_counts").fetchall()
-        
-        # Get all distinct days
+
         days_rows = c.execute("SELECT DISTINCT day FROM prices ORDER BY day ASC").fetchall()
         all_days = [r["day"] for r in days_rows]
-        
-        # Get total daily counts for calculating daily shares
+
         tot_counts = dict(c.execute("SELECT day, SUM(count) as s FROM raw_counts GROUP BY day").fetchall())
-        
+
         out = []
         for sym, name in LANGUAGES.items():
             meta = LANGUAGE_META.get(sym, {"color": "#4A90E2", "category": "Tech", "tag": "General", "desc": ""})
-            
-            # Fetch daily price and raw count
+
             rows = c.execute(
                 """SELECT p.day, p.price, COALESCE(r.count, 0) as count
                    FROM prices p
@@ -63,9 +74,9 @@ def assets():
                    WHERE p.symbol = ?
                    ORDER BY p.day ASC""", (sym,)
             ).fetchall()
-            
+
             if not rows: continue
-            
+
             history = []
             for r in rows:
                 d = r["day"]
@@ -77,11 +88,11 @@ def assets():
                     "count": r["count"],
                     "share": round(share, 2)
                 })
-            
+
             prices_list = [h["price"] for h in history]
             cur_p = prices_list[-1]
             base_p = prices_list[0] if prices_list else cur_p
-            
+
             def calc_change(n):
                 if len(prices_list) > n:
                     prev = prices_list[-1 - n]
@@ -92,7 +103,7 @@ def assets():
             change_7d = calc_change(7)
             change_30d = calc_change(30)
             change_all = round(((cur_p / base_p) - 1.0) * 100.0, 2) if base_p else 0.0
-            
+
             latest_count = history[-1]["count"]
             latest_share = history[-1]["share"]
 
@@ -115,20 +126,17 @@ def assets():
                 "spark": prices_list[-30:],
                 "history": history
             })
-            
-        # Ecosystem summary
+
         latest_day = all_days[-1] if all_days else None
         total_repos_today = tot_counts.get(latest_day, 0)
-        
-        # Distribution for GitHub Linguist bar
+
         distribution = sorted(
             [{"symbol": a["symbol"], "name": a["name"], "color": a["color"],
               "share_pct": a["share_pct"], "count": a["latest_count"]}
              for a in out],
             key=lambda x: -x["share_pct"]
         )
-        
-        # Top gainers and losers
+
         gainers = sorted(out, key=lambda a: -a["change_all"])[:3]
         losers = sorted(out, key=lambda a: a["change_all"])[:3]
 
@@ -147,34 +155,49 @@ def assets():
     }
 
 @app.post("/api/signup")
-def signup(b: Signup):
+@limiter.limit("10/minute")
+def signup(request: Request, b: Signup):
     return {"token": guard(trading.signup, b.name, b.address)}
 
 @app.post("/api/deposit")
-def deposit(d: Deposit, x_token: str = Header("")):
+@limiter.limit("20/minute")
+def deposit(request: Request, d: Deposit, x_token: str = Header("")):
     return guard(trading.deposit, x_token, d.amount)
 
+@app.post("/api/burn")
+@limiter.limit("20/minute")
+def burn(request: Request, b: Burn, x_token: str = Header("")):
+    return guard(trading.burn, x_token, b.amount)
+
 @app.get("/api/depth")
-def depth(symbol: str = Query("RS")):
+@limiter.limit("60/minute")
+def depth(request: Request, symbol: str = Query("RS")):
     return trading.order_book(symbol)
 
 @app.get("/api/genesis")
-def genesis():
+@limiter.limit("30/minute")
+def genesis(request: Request):
     return GENESIS_BLOCK
 
 @app.post("/api/trade")
-def trade(o: Order, x_token: str = Header("")):
+@limiter.limit("30/minute")
+def trade(request: Request, o: Order, x_token: str = Header("")):
     guard(trading.trade, x_token, o.symbol, o.side, o.points)
     return guard(trading.portfolio, x_token)
 
 @app.get("/api/portfolio")
-def portfolio(x_token: str = Header("")): return guard(trading.portfolio, x_token)
+@limiter.limit("60/minute")
+def portfolio(request: Request, x_token: str = Header("")):
+    return guard(trading.portfolio, x_token)
 
 @app.get("/api/leaderboard")
-def board(): return trading.leaderboard()
+@limiter.limit("20/minute")
+def board(request: Request):
+    return trading.leaderboard()
 
 @app.get("/api/oracle_status")
-def oracle_status():
+@limiter.limit("20/minute")
+def oracle_status(request: Request):
     """Anti-sybil: exposes data source health, credibility factors, and sybil defenses."""
     with conn() as c:
         sources = c.execute("""
@@ -192,8 +215,8 @@ def oracle_status():
         "sources": [dict(s) for s in sources],
         "multi_source_active": has_composite,
         "anti_sybil": {
-            "cap_mult": "2x trailing median — burst spike capped per language",
-            "fork_filter": "fork:false — forked repos excluded from counts",
+            "cap_mult": "2x trailing median - burst spike capped per language",
+            "fork_filter": "fork:false - forked repos excluded from counts",
             "composite_weighting": "GitHub 65% + Registry 35% for PY/JS/TS/RS",
             "star_weight": "Pending: 0-star repos scheduled for 0.3x weight",
             "account_age": "Pending oracle node layer: accounts <90 days weighted 0.01x",
@@ -205,7 +228,7 @@ def oracle_status():
                 "GitLab": "planned",
                 "job listings": "planned"
             },
-            "oracle_consensus": "Median of independent signed collector reports — one rogue node cannot move index",
+            "oracle_consensus": "Median of independent signed collector reports - one rogue node cannot move index",
             "sybil_credibility_factor": 0.85
         },
         "network": {
@@ -215,6 +238,10 @@ def oracle_status():
         }
     }
 
+@app.get("/api/burn_address")
+@limiter.limit("10/minute")
+def burn_address_info(request: Request):
+    """Returns the protocol burn address and total DEK burned."""
+    return trading.burn_info()
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-

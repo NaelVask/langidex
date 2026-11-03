@@ -3,7 +3,7 @@ import secrets, hashlib
 from config import (
     LANGUAGES, LANGUAGE_META, START_CASH, DEK_PER_TRADE_BPS,
     MAX_ASSET_OPEN_INTEREST, MAX_USER_OPEN_INTEREST_RATIO, MIN_ORDER_VALUE,
-    BASE_DENOMINATION
+    BASE_DENOMINATION, BURN_ADDRESS, DEK_MAX_SUPPLY
 )
 from db import conn
 
@@ -38,6 +38,47 @@ def deposit(token, amount):
         c.execute("INSERT INTO dek_ledger(user_id, delta, reason) VALUES (?, ?, ?)",
                   (u["id"], amount, "Wallet DEK deposit"))
     return portfolio(token)
+
+def burn(token, amount):
+    """Burns DEK by transferring tokens to the unspendable dead address."""
+    if amount <= 0:
+        raise ValueError("Burn amount must be positive")
+    with conn() as c:
+        u = _user(c, token)
+        user_dek = u["dek"] if ("dek" in u.keys() and u["dek"] is not None) else u["cash"]
+        if amount > user_dek + 1e-9:
+            raise ValueError(f"Insufficient DEK balance to burn ({user_dek:,.2f} available)")
+
+        # Deduct from user
+        c.execute("UPDATE users SET dek = COALESCE(dek, 0.0) - ?, cash = COALESCE(cash, 0.0) - ? WHERE id = ?",
+                  (amount, amount, u["id"]))
+        c.execute("INSERT INTO dek_ledger(user_id, delta, reason) VALUES (?, ?, ?)",
+                  (u["id"], -amount, f"Burned to dead address {BURN_ADDRESS[:10]}..."))
+        c.execute("INSERT INTO trades(user_id, symbol, side, units, price, dek_rewarded) VALUES (?, ?, ?, ?, ?, 0.0)",
+                  (u["id"], "DEK_BURN", "burn", amount, 1.0))
+
+        # Credit unspendable dead address
+        dead_user = c.execute("SELECT id FROM users WHERE token=?", (BURN_ADDRESS,)).fetchone()
+        if dead_user:
+            c.execute("UPDATE users SET dek = COALESCE(dek, 0.0) + ? WHERE id = ?", (amount, dead_user["id"]))
+        else:
+            c.execute("INSERT INTO users(name, token, cash, dek) VALUES (?, ?, 0.0, ?)",
+                      ("Dead Address", BURN_ADDRESS, amount))
+
+    return portfolio(token)
+
+def burn_info():
+    """Returns protocol-wide burn telemetry and dead address status."""
+    with conn() as c:
+        row = c.execute("SELECT dek FROM users WHERE token=?", (BURN_ADDRESS,)).fetchone()
+        burned = row["dek"] if row and row["dek"] else 0.0
+    return {
+        "burn_address": BURN_ADDRESS,
+        "total_burned": round(burned, 4),
+        "hard_cap": DEK_MAX_SUPPLY,
+        "circulating_max": round(DEK_MAX_SUPPLY - burned, 4),
+        "status": "Unspendable. No private key exists."
+    }
 
 def _user(c, token):
     u = c.execute("SELECT * FROM users WHERE token=?", (token,)).fetchone()
@@ -95,7 +136,7 @@ def trade(token, sym, side, points):
         if dek_reward > 0:
             c.execute("UPDATE users SET dek = COALESCE(dek, 0.0) + ? WHERE id = ?", (dek_reward, u["id"]))
             c.execute("INSERT INTO dek_ledger(user_id, delta, reason) VALUES (?, ?, ?)",
-                      (u["id"], dek_reward, f"Trade incentive {side} {sym}"))
+                  (u["id"], dek_reward, f"Trade incentive {side} {sym}"))
 
 def _user_positions_with_pnl(c, user_id):
     pos = c.execute("SELECT symbol, units FROM positions WHERE user_id=? AND units>1e-9", (user_id,)).fetchall()

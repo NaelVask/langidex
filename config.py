@@ -57,6 +57,10 @@ LANGUAGE_META = {
 BASE_DENOMINATION = "DEK"  # 100% native settlement in DEK utility tokens
 START_CASH        = 0.0    # ledger starts at zero, no pre-printed or unearned tokens
 
+# Protocol Burn / Dead Address
+# Mathematically unspendable sink. No private key exists.
+BURN_ADDRESS      = "0x000000000000000000000000000000000000dEaD"
+
 # Index formula parameters
 WINDOW            = 7      # days in the moving average smoother
 CAP_MULT          = 2.0    # daily count clipped to 2x trailing median (anti-spam burst)
