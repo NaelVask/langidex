@@ -1,7 +1,7 @@
 """Component 3: exchange engine with native DEK denomination, strict open interest caps, and anti-whale controls."""
 import secrets, hashlib
 from config import (
-    LANGUAGES, LANGUAGE_META, START_CASH, DEK_PER_TRADE_BPS,
+    LANGUAGES, LANGUAGE_META, START_CASH, DEK_PER_TRADE_BPS, DEK_PER_ORACLE_DAY,
     MAX_ASSET_OPEN_INTEREST, MAX_USER_OPEN_INTEREST_RATIO, MIN_ORDER_VALUE,
     BASE_DENOMINATION, BURN_ADDRESS, DEK_MAX_SUPPLY
 )
@@ -79,6 +79,29 @@ def burn_info():
         "circulating_max": round(DEK_MAX_SUPPLY - burned, 4),
         "status": "Unspendable. No private key exists."
     }
+
+def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str = None) -> float:
+    """Awards the daily block reward (50 DEK) to an oracle validator node for a verified epoch."""
+    with conn() as c:
+        u = c.execute("SELECT id, name, dek FROM users WHERE token=?", (node_address,)).fetchone()
+        if not u:
+            clean_name = "Node-" + node_address[:8]
+            c.execute("INSERT INTO users(name, token, cash, dek) VALUES (?, ?, 0.0, 0.0)", (clean_name, node_address))
+            u = c.execute("SELECT id, name, dek FROM users WHERE token=?", (node_address,)).fetchone()
+
+        reason = f"Oracle block reward for epoch {epoch_day}"
+        existing = c.execute("SELECT id FROM dek_ledger WHERE user_id=? AND reason=?", (u["id"], reason)).fetchone()
+        if existing:
+            return u["dek"] or 0.0
+
+        reward = float(DEK_PER_ORACLE_DAY)
+        c.execute("UPDATE users SET dek = COALESCE(dek, 0.0) + ?, cash = COALESCE(cash, 0.0) + ? WHERE id=?",
+                  (reward, reward, u["id"]))
+        c.execute("INSERT INTO dek_ledger(user_id, delta, reason) VALUES (?, ?, ?)", (u["id"], reward, reason))
+        c.execute("INSERT INTO trades(user_id, symbol, side, units, price, dek_rewarded) VALUES (?, 'DEK_MINING', 'mint', ?, 1.0, ?)",
+                  (u["id"], reward, reward))
+        new_bal = (u["dek"] or 0.0) + reward
+        return new_bal
 
 def _user(c, token):
     u = c.execute("SELECT * FROM users WHERE token=?", (token,)).fetchone()
