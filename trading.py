@@ -1,6 +1,9 @@
 """Component 3: exchange engine with real pricing, clean ledger, and DEK reward distribution."""
 import secrets, hashlib
-from config import LANGUAGES, LANGUAGE_META, START_CASH, DEK_PER_TRADE_BPS
+from config import (
+    LANGUAGES, LANGUAGE_META, START_CASH, DEK_PER_TRADE_BPS,
+    MAX_ASSET_OPEN_INTEREST, MAX_USER_OPEN_INTEREST_RATIO, MIN_ORDER_VALUE
+)
 from db import conn
 
 def latest_price(c, sym):
@@ -38,18 +41,37 @@ def _user(c, token):
 def trade(token, sym, side, points):
     if sym not in LANGUAGES: raise ValueError("Unknown symbol")
     if side not in ("buy", "sell") or points <= 0: raise ValueError("Enter a positive amount")
+    if points < MIN_ORDER_VALUE: raise ValueError(f"Minimum order size is ${MIN_ORDER_VALUE:.2f}")
+
     with conn() as c:
         u = _user(c, token)
         price = latest_price(c, sym)
         units = points / price
-        held = c.execute("SELECT units FROM positions WHERE user_id=? AND symbol=?", (u["id"], sym)).fetchone()
-        held = held["units"] if held else 0.0
+        held_row = c.execute("SELECT units FROM positions WHERE user_id=? AND symbol=?", (u["id"], sym)).fetchone()
+        held = held_row["units"] if held_row else 0.0
+
         if side == "buy":
-            if points > u["cash"] + 1e-9: raise ValueError(f"Insufficient balance (${u['cash']:,.2f} available)")
+            if points > u["cash"] + 1e-9:
+                raise ValueError(f"Insufficient balance (${u['cash']:,.2f} available)")
+
+            # Aggregate Solvency Protection: enforce global asset open interest cap
+            agg_row = c.execute("SELECT SUM(units) as total FROM positions WHERE symbol=?", (sym,)).fetchone()
+            curr_agg_units = agg_row["total"] if (agg_row and agg_row["total"]) else 0.0
+            new_agg_exposure = (curr_agg_units + units) * price
+            if new_agg_exposure > MAX_ASSET_OPEN_INTEREST:
+                raise ValueError(f"Asset open interest cap reached (${MAX_ASSET_OPEN_INTEREST:,.0f}). Solvency protection active.")
+
+            # Anti-Whale Limit: no single account may hold more than MAX_USER_OPEN_INTEREST_RATIO of allowable exposure
+            user_post_exposure = (held + units) * price
+            max_user_allowed = MAX_ASSET_OPEN_INTEREST * MAX_USER_OPEN_INTEREST_RATIO
+            if user_post_exposure > max_user_allowed:
+                raise ValueError(f"Anti-whale limit: Single account cannot exceed ${max_user_allowed:,.0f} ({int(MAX_USER_OPEN_INTEREST_RATIO*100)}% of cap).")
+
             c.execute("UPDATE users SET cash=cash-? WHERE id=?", (points, u["id"]))
             delta = units
         else:
-            if units > held + 1e-9: raise ValueError(f"Insufficient {sym} balance ({held:,.4f} units held)")
+            if units > held + 1e-9:
+                raise ValueError(f"Insufficient {sym} balance ({held:,.4f} units held)")
             c.execute("UPDATE users SET cash=cash+? WHERE id=?", (points, u["id"]))
             delta = -units
 

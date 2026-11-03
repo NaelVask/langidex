@@ -65,3 +65,8 @@ DEK_PER_ORACLE_DAY = 50   # DEK awarded to an oracle node per validated daily su
 DEK_MAX_SUPPLY     = 20_502_006  # strict hard cap
 TARGET_BLOCK_TIME_SEC = 86_400  # 24 hours per daily epoch block
 DIFFICULTY_LOOKBACK_BLOCKS = 14 # difficulty retargets every 14 blocks based on active oracle count
+
+# Solvency and Anti-Whale Liquidity Controls
+MAX_ASSET_OPEN_INTEREST      = 250_000.0  # aggregate exposure cap per language index
+MAX_USER_OPEN_INTEREST_RATIO = 0.15       # maximum 15% of open interest held by one user
+MIN_ORDER_VALUE              = 1.0        # minimum 1.0 USDT order size
