@@ -899,19 +899,32 @@
 
   <!-- Connect / Generate Keypair Modal -->
   <div class="modal-backdrop" id="connectModal">
-    <div class="modal-window">
+    <div class="modal-window" style="max-width: 480px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <h3 style="font-size:14px; font-weight:700;">Connect Cryptographic Identity</h3>
         <button class="btn-ghost" onclick="closeConnectModal()">✕</button>
       </div>
-      <p style="font-size:12px; color:var(--text-secondary);">
-        Connect with an anonymous cryptographic address or generate a new keypair:
+      <p style="font-size:12px; color:var(--text-secondary); margin: 8px 0 10px 0;">
+        Connect with your 12-word recovery phrase or public address:
       </p>
-      <div class="input-box">
-        <input type="text" id="walletInput" placeholder="Enter Public Key / Address (e.g. 0x8a7...)" style="width:100%;">
+      <div class="input-box" style="margin-bottom:10px;">
+        <textarea id="walletInput" placeholder="Enter 12-word recovery phrase or address (e.g. apple river mountain... or 0x8a7...)" style="width:100%; height:50px; background:transparent; border:none; color:#fff; font-family:monospace; font-size:12px; resize:none; outline:none;"></textarea>
       </div>
+
+      <!-- Mnemonic Recovery Box (Shown when generating a new wallet) -->
+      <div id="mnemonicContainer" style="display:none; background:#181622; border:1px solid #7c3aed; border-radius:6px; padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:700; color:#a78bfa;">12-WORD RECOVERY PHRASE</span>
+          <button class="btn-ghost" id="btnCopyPhrase" onclick="copyMnemonicPhrase()" style="font-size:11px; padding:2px 8px;">Copy Words</button>
+        </div>
+        <div id="mnemonicWordsDisplay" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; font-family:monospace; font-size:11px; color:#fff; background:#0d0c13; padding:8px; border-radius:4px;"></div>
+        <div style="margin-top:10px; font-size:11px; color:#f87171; line-height:1.4;">
+          <b>One-Time Backup Reminder:</b> Write down or store these 12 words in a safe place. If you clear cookies or change computers, this is the only way to recover your DEK balance. No authority or server can recover it for you.
+        </div>
+      </div>
+
       <div style="display:flex; gap:10px;">
-        <button class="btn-ghost" onclick="generateRandomKey()" style="flex:1;">Generate Keypair</button>
+        <button class="btn-ghost" onclick="generateNewMnemonicWallet()" style="flex:1;">Generate 12-Word Wallet</button>
         <button class="btn-brand" onclick="confirmConnect()" style="flex:1;">Connect Wallet</button>
       </div>
     </div>
@@ -988,19 +1001,78 @@
       return data;
     }
 
-    function generateRandomKey() {
-      const chars = "0123456789abcdef";
-      let addr = "0x";
-      for (let i = 0; i < 40; i++) addr += chars[Math.floor(Math.random() * chars.length)];
-      $("walletInput").value = addr;
+    const MNEMONIC_WORDS = [
+      "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse",
+      "access", "accident", "account", "accuse", "achieve", "acid", "acoustic", "acquire", "across", "action",
+      "actor", "actress", "actual", "adapt", "add", "addict", "address", "adjust", "admit", "adult",
+      "advance", "advice", "aerobic", "affair", "afford", "afraid", "again", "agent", "agree", "ahead",
+      "aim", "air", "airport", "aisle", "alarm", "album", "alcohol", "alert", "alien", "alley",
+      "allow", "almost", "alone", "alpha", "already", "also", "alter", "always", "amateur", "amazing",
+      "among", "amount", "amused", "analyst", "anchor", "ancient", "anger", "angle", "angry", "animal",
+      "ankle", "announce", "annual", "another", "answer", "antenna", "antique", "anxiety", "apart", "apology",
+      "appear", "apple", "approve", "april", "arch", "arctic", "area", "arena", "argue", "armor",
+      "army", "around", "arrange", "arrest", "arrive", "arrow", "art", "artist", "artwork", "aspect",
+      "assault", "asset", "assist", "assume", "asthma", "athlete", "atom", "attack", "attend", "attitude",
+      "attract", "auction", "audit", "august", "aunt", "author", "auto", "autumn", "average", "avocado",
+      "avoid", "awake", "aware", "away", "awesome", "awful", "awkward", "axis", "baby", "bachelor",
+      "bacon", "badge", "bag", "balance", "balcony", "ball", "bamboo", "banana", "banner", "barrel",
+      "base", "basic", "basket", "battle", "beach", "bean", "beauty", "become", "beef", "before",
+      "begin", "behave", "behind", "believe", "below", "belt", "bench", "benefit", "best", "betray",
+      "better", "between", "beyond", "bicycle", "bike", "bind", "biology", "bird", "birth", "bitter",
+      "black", "blade", "blame", "blanket", "blast", "bleak", "bless", "blind", "blood", "blossom",
+      "blue", "blur", "blush", "board", "boat", "body", "boil", "bomb", "bone", "bonus",
+      "book", "boost", "border", "boring", "borrow", "boss", "bottom", "bounce", "box", "boy",
+      "bracket", "brain", "brand", "brass", "brave", "bread", "breeze", "brick", "bridge", "brief",
+      "bright", "bring", "brisk", "broccoli", "broken", "bronze", "broom", "brother", "brown", "brush",
+      "bubble", "buddy", "budget", "buffalo", "build", "bulb", "bulk", "bullet", "bundle", "bunker",
+      "burden", "burger", "burst", "bus", "business", "busy", "butter", "buyer", "buzz", "cabbage",
+      "cabin", "cable", "cactus", "cage", "cake", "call", "calm", "camera", "camp", "can"
+    ];
+
+    let currentGeneratedPhrase = "";
+
+    function generateNewMnemonicWallet() {
+      const randBytes = new Uint8Array(12);
+      crypto.getRandomValues(randBytes);
+      const chosenWords = [];
+      for (let i = 0; i < 12; i++) {
+        chosenWords.push(MNEMONIC_WORDS[randBytes[i] % MNEMONIC_WORDS.length]);
+      }
+      currentGeneratedPhrase = chosenWords.join(" ");
+      $("walletInput").value = currentGeneratedPhrase;
+
+      const display = $("mnemonicWordsDisplay");
+      display.innerHTML = "";
+      chosenWords.forEach((w, idx) => {
+        const item = document.createElement("div");
+        item.style.padding = "4px 6px";
+        item.style.background = "#14131d";
+        item.style.borderRadius = "3px";
+        item.innerHTML = `<span style="color:#7c3aed; margin-right:4px;">${idx + 1}.</span>${w}`;
+        display.appendChild(item);
+      });
+
+      $("mnemonicContainer").style.display = "block";
+      $("btnCopyPhrase").textContent = "Copy Words";
+    }
+
+    function copyMnemonicPhrase() {
+      if (!currentGeneratedPhrase) return;
+      navigator.clipboard.writeText(currentGeneratedPhrase).then(() => {
+        $("btnCopyPhrase").textContent = "Copied!";
+        setTimeout(() => { $("btnCopyPhrase").textContent = "Copy Words"; }, 2500);
+      });
     }
 
     async function confirmConnect() {
-      let addr = $("walletInput").value.trim();
-      if (!addr) addr = "0x" + Array.from(crypto.getRandomValues(new Uint8Array(20))).map(b => b.toString(16).padStart(2,'0')).join('');
+      let raw = $("walletInput").value.trim();
+      if (!raw) {
+        generateNewMnemonicWallet();
+        raw = currentGeneratedPhrase;
+      }
       const res = await api("/api/signup", {
         method: "POST",
-        body: JSON.stringify({ name: addr.slice(0, 8), address: addr })
+        body: JSON.stringify({ name: "Trader", address: raw })
       });
       userToken = res.token;
       localStorage.setItem("bc_address", userToken);

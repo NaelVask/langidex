@@ -16,7 +16,16 @@ def signup(name=None, address=None):
     clean_name = (name or "Trader").strip()[:30]
     if not clean_name:
         clean_name = "Trader"
-    token = address.strip() if address and len(address.strip()) > 8 else secrets.token_hex(16)
+    if address and len(address.strip()) > 3:
+        raw = address.strip()
+        if " " in raw:
+            norm = " ".join(raw.lower().split())
+            token = "0x" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:40]
+        else:
+            token = raw
+    else:
+        token = secrets.token_hex(16)
+
     with conn() as c:
         existing = c.execute("SELECT token FROM users WHERE token=?", (token,)).fetchone()
         if existing:
