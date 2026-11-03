@@ -3,7 +3,7 @@ Allows non-technical users to verify GitHub and package registry telemetry
 and mint 50.00 DEK per daily epoch block into their wallet.
 """
 import os, sys, datetime as dt, hashlib
-from db import init
+from db import init, backup_db
 from collector import collect
 from index_engine import rebuild_prices
 from trading import award_oracle_reward, tokenomics_summary
@@ -55,14 +55,17 @@ def run_miner():
     print(f"[*] Mining Target Wallet: {wallet_addr}")
     print("-" * 64)
 
-    print("\n[1/3] Ingesting multi-source telemetry (GitHub, PyPI, npm, crates.io)...")
+    print("\n[1/4] Ingesting multi-source telemetry (GitHub, PyPI, npm, crates.io)...")
     collect(epoch_day)
 
-    print("\n[2/3] Computing anti-sybil filters and rebuilding index prices...")
+    print("\n[2/4] Computing anti-sybil filters and rebuilding index prices...")
     rebuild_prices()
 
-    print("\n[3/3] Minting validator block reward...")
+    print("\n[3/4] Minting validator block reward...")
     bal = award_oracle_reward(wallet_addr, epoch_day)
+
+    print("\n[4/4] Creating rolling ACID ledger backup...")
+    backup_file = backup_db()
 
     summary = tokenomics_summary()
 
@@ -74,6 +77,7 @@ def run_miner():
     print(f"Reward Minted:        +50.00 DEK")
     print(f"Your Wallet Address:  {wallet_addr}")
     print(f"Your Total Balance:   {bal:.2f} DEK")
+    print(f"Ledger Snapshot:      {backup_file}")
     print("-" * 64)
     print(f"Total DEK Minted:     {summary['total_minted']:,.2f} / {summary['hard_cap']:,} DEK")
     print(f"Remaining to Mine:    {summary['remaining_unmined']:,.2f} DEK")

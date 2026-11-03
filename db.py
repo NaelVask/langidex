@@ -66,3 +66,28 @@ def init():
             c.execute("ALTER TABLE trades ADD COLUMN dek_rewarded REAL DEFAULT 0.0")
         except Exception:
             pass
+
+def backup_db(keep_count: int = 14) -> str:
+    """Creates a point-in-time ACID snapshot of the database using SQLite's online backup API.
+    Maintains a rolling window of recent backups and prunes snapshots older than keep_count."""
+    import datetime as dt, glob
+    backup_dir = "backups"
+    os.makedirs(backup_dir, exist_ok=True)
+    stamp = dt.datetime.utcnow().strftime("%Y-%m-%d_%H%M%S")
+    dest_path = os.path.join(backup_dir, f"techx_{stamp}.db")
+
+    with conn() as src:
+        dst = sqlite3.connect(dest_path)
+        src.backup(dst)
+        dst.close()
+
+    # Prune old backups beyond rolling keep_count
+    existing_backups = sorted(glob.glob(os.path.join(backup_dir, "techx_*.db")))
+    if len(existing_backups) > keep_count:
+        for old_file in existing_backups[:-keep_count]:
+            try:
+                os.remove(old_file)
+            except Exception:
+                pass
+
+    return dest_path

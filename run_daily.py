@@ -1,9 +1,9 @@
-"""Run once a day (cron / scheduler): fetch yesterday's counts, rebuild the index, and award oracle block reward.
+"""Run once a day (cron / scheduler): fetch yesterday's counts, rebuild the index, award oracle block reward, and backup ledger.
 Usage:
   python run_daily.py [node_wallet_address]
 """
 import sys, os, datetime as dt
-from db import init
+from db import init, backup_db
 from collector import collect
 from index_engine import rebuild_prices
 from trading import award_oracle_reward
@@ -24,3 +24,7 @@ if node_addr:
     print(f"Updated Wallet Balance: {bal:.2f} DEK")
 else:
     print("[NOTE] No node wallet address passed. Run with 'python run_daily.py <wallet_address>' to claim 50 DEK reward.")
+
+# Rolling ledger backup
+backup_path = backup_db()
+print(f"[BACKUP] Ledger state safely backed up: {backup_path}")

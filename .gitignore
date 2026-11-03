@@ -6,3 +6,4 @@ __pycache__/
 *.db-shm
 tor_service/
 .miner_wallet
+backups/
