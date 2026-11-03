@@ -9,7 +9,7 @@ from db import conn, init
 import trading
 
 init()
-app = FastAPI(title="Build Coin — Developer Adoption Exchange")
+app = FastAPI(title="Langdex Protocol - Developer Adoption Index")
 
 class Signup(BaseModel):
     name: Optional[str] = "Trader"
@@ -25,10 +25,10 @@ class Deposit(BaseModel):
 
 # Satoshi-style Genesis block manifest & cryptographic hash proof
 GENESIS_BLOCK = {
-    "protocol": "Build Coin Protocol — Developer Adoption Index",
+    "protocol": "Langdex Protocol - Developer Adoption Index",
     "genesis_timestamp": "2026-11-02T19:30:00Z",
     "version": "1.0.0-PROT",
-    "creator_manifest": "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks // LangIndex 03/Nov/2026 The Developer Ecosystem Belongs to the Builders",
+    "creator_manifest": "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks // Langdex 03/Nov/2026 The Developer Ecosystem Belongs to the Builders",
     "creator_public_key": "0x7a892bF584C8bEb8f682057F7392aA7b25F18dE0",
     "genesis_hash": "87be4735c1f0c9f85c5e2822b893c097dfa9690ccd4bfa95374036b537090def",
     "signature": "3045022100e4b85c2980b1df308a287233f2b4c19559815049a4f494950b73c2ad2c355ad4022026dc24584cbb9d0689b9176f1837012543cbe25ef14bdf8880693a2010c7104b"

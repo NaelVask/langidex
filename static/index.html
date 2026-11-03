@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LangIndex | Developer Adoption Protocol</title>
+  <title>Langdex | Developer Adoption Protocol</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -227,12 +227,11 @@
       flex: 1;
       background: var(--bg-base);
     }
-    @media (max-width: 1200px) {
-      .terminal-body { grid-template-columns: 1fr 340px; }
-      .market-col { display: none; }
+    @media (max-width: 1280px) {
+      .terminal-body { grid-template-columns: 240px 1fr 300px; }
     }
-    @media (max-width: 860px) {
-      .terminal-body { grid-template-columns: 1fr; }
+    @media (max-width: 1024px) {
+      .terminal-body { grid-template-columns: 220px 1fr 280px; }
     }
 
     /* Left Column: Markets List */
@@ -532,30 +531,40 @@
     .btn-trade-execute.sell { background: var(--sell); }
     .btn-trade-execute.sell:hover { background: var(--sell-hover); }
 
+    /* Body modal lock */
+    body.modal-open {
+      overflow: hidden !important;
+    }
+
     /* Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(4, 7, 14, 0.85);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 200;
+      z-index: 500;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.15s;
+      transition: opacity 0.18s ease;
+      padding: 20px;
     }
     .modal-backdrop.show { opacity: 1; pointer-events: auto; }
     .modal-window {
       background: var(--bg-panel);
       border: 1px solid var(--border);
       border-radius: 6px;
-      width: 520px;
-      max-width: 92vw;
+      width: 560px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
       padding: 22px;
       display: flex;
       flex-direction: column;
       gap: 14px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85);
     }
 
     /* Satoshi Cryptographic Proof Card */
@@ -581,7 +590,7 @@
     <div class="nav-left">
       <div class="nav-brand" onclick="location.reload()">
         <div class="brand-icon">덱</div>
-        <span>Lang<b style="color:var(--brand-purple)">Index</b></span>
+        <span>Lang<b style="color:var(--brand-purple)">dex</b></span>
       </div>
       <a class="nav-link active">Ecosystem Ledger</a>
       <a class="nav-link" onclick="openOracleModal()">Multi-Source Oracles & Defense</a>
@@ -608,7 +617,7 @@
 
     <div class="ticker-stat">
       <span class="ticker-stat-label">Adoption Price</span>
-      <span class="ticker-stat-val num" id="topPrice">$108.63</span>
+      <span class="ticker-stat-val num" id="topPrice">108.63 DEK</span>
     </div>
 
     <div class="ticker-stat">
@@ -631,18 +640,19 @@
       <span class="ticker-stat-val num up" id="topChange7d">+8.63%</span>
     </div>
 
-    <div class="ticker-stat">
+        <div class="ticker-stat">
       <span class="ticker-stat-label">Oracles</span>
       <span class="ticker-stat-val" style="color:var(--brand-purple); font-size:11px; font-weight:600;">● GitHub + Registries</span>
     </div>
-  </div>
+
     <div class="ticker-stat" style="margin-left:auto; border-left:1px solid var(--border); padding-left:20px;">
       <span class="ticker-stat-label">Block Height</span>
-      <span class="ticker-stat-val num" id="blockHeight" style="color:#f7931a; font-weight:700;">�</span>
+      <span class="ticker-stat-val num" id="blockHeight" style="color:#f7931a; font-weight:700;">BLK #7</span>
     </div>
+
     <div class="ticker-stat">
       <span class="ticker-stat-label">Anti-Sybil</span>
-      <span class="ticker-stat-val" style="font-size:11px; font-weight:600; color:#0ecb81;">? ACTIVE</span>
+      <span class="ticker-stat-val" style="font-size:11px; font-weight:600; color:#0ecb81;">✓ ACTIVE</span>
     </div>
   </div>
 
@@ -691,7 +701,7 @@
         <!-- Metric Switcher Buttons (Price vs Repos vs Share vs Compare) -->
         <div class="tf-group">
           <span style="font-size:11px; color:var(--text-tertiary); font-weight:600; margin-right:4px;">Plot:</span>
-          <button class="tf-btn active" id="btnMetricPrice" onclick="setPlotMetric('price')">Price ($)</button>
+          <button class="tf-btn active" id="btnMetricPrice" onclick="setPlotMetric('price')">Price (DEK)</button>
           <button class="tf-btn" id="btnMetricRepos" onclick="setPlotMetric('repos')">Daily Repos Pushed</button>
           <button class="tf-btn" id="btnMetricShare" onclick="setPlotMetric('share')">Ecosystem Share (%)</button>
           <button class="tf-btn" id="btnMetricCompare" onclick="setPlotMetric('compare')">Compare All Movers</button>
@@ -788,7 +798,7 @@
       <div class="order-book-wrap">
         <div id="obAsks" style="display:flex; flex-direction:column-reverse; gap:1px;"></div>
         <div class="ob-spread-price">
-          <span class="num up" id="obMidPrice">$108.63</span>
+          <span class="num up" id="obMidPrice">108.63 DEK</span>
           <span style="font-size:10px; color:var(--text-tertiary);">Spread 0.02%</span>
         </div>
         <div id="obBids" style="display:flex; flex-direction:column; gap:1px;"></div>
@@ -873,7 +883,7 @@
         Protocol integrity is mathematically anchored by a Genesis cryptographic hash and public key signature:
       </p>
       <div class="crypto-proof-box">
-        <div><b>Protocol:</b> <span id="genProto">Build Coin Protocol — Developer Adoption Index</span></div>
+        <div><b>Protocol:</b> <span id="genProto">Langdex Protocol - Developer Adoption Index</span></div>
         <div><b>Genesis Manifest:</b> <span id="genManifest">The Developer Ecosystem Belongs to the Builders</span></div>
         <div><b>Genesis Block Hash (SHA-256):</b></div>
         <div style="color:var(--brand-purple);" id="genHash">10bc5f8c1d605af6...</div>
@@ -922,10 +932,10 @@
         <span class="input-label" style="color:#fff;">DEK</span>
       </div>
       <div style="display:flex; gap:6px;">
-        <button class="pip-btn" onclick="$('depositInput').value=100">$100</button>
-        <button class="pip-btn" onclick="$('depositInput').value=500">$500</button>
-        <button class="pip-btn" onclick="$('depositInput').value=1000">$1,000</button>
-        <button class="pip-btn" onclick="$('depositInput').value=5000">$5,000</button>
+        <button class="pip-btn" onclick="$('depositInput').value=100">100 DEK</button>
+        <button class="pip-btn" onclick="$('depositInput').value=500">500 DEK</button>
+        <button class="pip-btn" onclick="$('depositInput').value=1000">1,000 DEK</button>
+        <button class="pip-btn" onclick="$('depositInput').value=5000">5,000 DEK</button>
       </div>
       <button class="btn-brand" onclick="confirmDeposit()" style="width:100%; margin-top:6px;">Confirm Deposit</button>
     </div>
@@ -948,18 +958,26 @@
     const $ = id => document.getElementById(id);
     const fmt = (n, d=2) => Number(n).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
 
-    // Modals
-    function openOracleModal() { $("oracleModal").classList.add("show"); }
-    function closeOracleModal() { $("oracleModal").classList.remove("show"); }
-    function openGenesisModal() { fetchGenesis(); $("genesisModal").classList.add("show"); }
-    function closeGenesisModal() { $("genesisModal").classList.remove("show"); }
-    function openConnectModal() { $("connectModal").classList.add("show"); }
-    function closeConnectModal() { $("connectModal").classList.remove("show"); }
+    // Modals with background scroll lock
+    function openModal(id) {
+      $(id).classList.add("show");
+      document.body.classList.add("modal-open");
+    }
+    function closeModal(id) {
+      $(id).classList.remove("show");
+      document.body.classList.remove("modal-open");
+    }
+    function openOracleModal() { openModal("oracleModal"); }
+    function closeOracleModal() { closeModal("oracleModal"); }
+    function openGenesisModal() { fetchGenesis(); openModal("genesisModal"); }
+    function closeGenesisModal() { closeModal("genesisModal"); }
+    function openConnectModal() { openModal("connectModal"); }
+    function closeConnectModal() { closeModal("connectModal"); }
     function openDepositModal() {
       if (!userToken) { openConnectModal(); return; }
-      $("depositModal").classList.add("show");
+      openModal("depositModal");
     }
-    function closeDepositModal() { $("depositModal").classList.remove("show"); }
+    function closeDepositModal() { closeModal("depositModal"); }
 
     async function api(path, opts={}) {
       const headers = { "Content-Type": "application/json" };
@@ -1077,7 +1095,7 @@
             <div style="font-weight:700; color:#fff;">${a.symbol}<span style="color:var(--text-tertiary); font-size:10px;">/DEK</span></div>
             <div style="font-size:10px; color:var(--text-secondary);">${a.name}</div>
           </td>
-          <td class="num" style="font-weight:600;">$${fmt(a.price, 2)}</td>
+          <td class="num" style="font-weight:600;">${fmt(a.price, 2)} DEK</td>
           <td class="num" style="text-align:right; font-weight:600; color:#fff;">
             ${fmt(a.latest_count, 0)}
           </td>
@@ -1092,7 +1110,7 @@
 
       $("curPairSymbol").textContent = `${a.symbol}/DEK`;
       $("curPairTag").textContent = a.category;
-      $("topPrice").textContent = `$${fmt(a.price, 2)}`;
+      $("topPrice").textContent = `${fmt(a.price, 2)} DEK`;
       $("topRepos").textContent = fmt(a.latest_count, 0);
       $("topShare").textContent = `${a.share_pct}%`;
       $("topPkg").textContent = `${a.pkg || 'Registry'}: ${a.pkg_stats || 'Active'}`;
@@ -1234,8 +1252,8 @@
 
         if (plotMetric === "price") {
           dataSeries = hist.map(h => h.price);
-          seriesLabel = `${a.symbol} Adoption Index ($)`;
-          yFormatter = v => '$' + v.toFixed(2);
+          seriesLabel = `${a.symbol} Adoption Index (DEK)`;
+          yFormatter = v => v.toFixed(2) + ' DEK';
         } else if (plotMetric === "repos") {
           dataSeries = hist.map(h => h.count);
           seriesLabel = `${a.symbol} Daily Pushed Repos (GitHub Search API)`;
@@ -1313,11 +1331,11 @@
     async function fetchOrderBook() {
       try {
         const data = await api(`/api/depth?symbol=${curSym}`);
-        $("obMidPrice").textContent = `$${fmt(data.price, 2)}`;
+        $("obMidPrice").textContent = `${fmt(data.price, 2)} DEK`;
 
         $("obAsks").innerHTML = (data.asks || []).map(a => `
           <div class="ob-row">
-            <span class="num down" style="font-weight:600;">$${fmt(a.price, 2)}</span>
+            <span class="num down" style="font-weight:600;">${fmt(a.price, 2)} DEK</span>
             <span class="num">${fmt(a.amount, 2)}</span>
             <span class="num" style="color:var(--text-tertiary);">${fmt(a.total, 0)}</span>
             <div class="ob-depth-bar" style="background:var(--sell); width:${Math.min(100, a.amount * 2)}%;"></div>
@@ -1326,7 +1344,7 @@
 
         $("obBids").innerHTML = (data.bids || []).map(b => `
           <div class="ob-row">
-            <span class="num up" style="font-weight:600;">$${fmt(b.price, 2)}</span>
+            <span class="num up" style="font-weight:600;">${fmt(b.price, 2)}</span>
             <span class="num">${fmt(b.amount, 2)}</span>
             <span class="num" style="color:var(--text-tertiary);">${fmt(b.total, 0)}</span>
             <div class="ob-depth-bar" style="background:var(--buy); width:${Math.min(100, b.amount * 2)}%;"></div>
@@ -1423,9 +1441,9 @@
             <tr>
               <td><b>${pos.symbol}</b> <span style="color:var(--text-secondary); font-size:11px;">(${pos.name})</span></td>
               <td class="num">${fmt(pos.units, 4)}</td>
-              <td class="num">$${fmt(pos.avg_cost, 2)}</td>
-              <td class="num">$${fmt(pos.current_price, 2)}</td>
-              <td class="num" style="font-weight:600;">$${fmt(pos.value, 2)}</td>
+              <td class="num">${fmt(pos.avg_cost, 2)}</td>
+              <td class="num">${fmt(pos.current_price, 2)}</td>
+              <td class="num" style="font-weight:600;">${fmt(pos.value, 2)} DEK</td>
               <td class="num ${pos.pnl >= 0 ? 'up' : 'down'}" style="text-align:right; font-weight:600;">
                 ${pos.pnl >= 0 ? '+' : ''}$${fmt(pos.pnl, 2)} (${pos.pnl_pct >= 0 ? '+' : ''}${fmt(pos.pnl_pct, 2)}%)
               </td>
@@ -1443,8 +1461,8 @@
               <td><b>${t.symbol}/DEK</b></td>
               <td><span class="num ${t.side === 'buy' ? 'up' : 'down'}">${t.side.toUpperCase()}</span></td>
               <td class="num">${fmt(t.units, 4)}</td>
-              <td class="num">$${fmt(t.price, 2)}</td>
-              <td class="num" style="text-align:right;">$${fmt(t.total, 2)}</td>
+              <td class="num">${fmt(t.price, 2)}</td>
+              <td class="num" style="text-align:right;">${fmt(t.total, 2)} DEK</td>
             </tr>
           `).join("");
         }
@@ -1462,7 +1480,7 @@
           <tr>
             <td>#${i + 1}</td>
             <td class="num">${b.address}</td>
-            <td class="num" style="font-weight:600;">$${fmt(b.total, 2)} DEK</td>
+            <td class="num" style="font-weight:600;">${fmt(b.total, 2)} DEK</td>
             <td class="num ${b.return_pct >= 0 ? 'up' : 'down'}" style="text-align:right; font-weight:600;">
               ${b.return_pct >= 0 ? '+' : ''}${fmt(b.return_pct, 2)}%
             </td>
@@ -1477,6 +1495,19 @@
       } catch(e) {}
     }
 
+
+
+    // Close modal when clicking on backdrop
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".modal-backdrop").forEach(b => {
+        b.addEventListener("click", (e) => {
+          if (e.target === b) {
+            b.classList.remove("show");
+            document.body.classList.remove("modal-open");
+          }
+        });
+      });
+    });
 
     init();
   </script>
