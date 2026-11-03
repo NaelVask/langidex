@@ -53,20 +53,28 @@ LANGUAGE_META = {
     "PL":  {"color": "#0298c3", "category": "Legacy & Ops",    "tag": "Text/Sys",    "desc": "Text-processing language behind many legacy sysadmin, bioinformatics, and CPAN tools.","pkg": "CPAN",        "pkg_stats": "200k modules"},
 }
 
+# Currency and Settlement Architecture
+BASE_DENOMINATION = "DEK"  # 100% native settlement in DEK utility tokens
+START_CASH        = 0.0    # ledger starts at zero, no pre-printed or unearned tokens
+
 # Index formula parameters
-START_CASH        = 0.0   # ledger starts at zero, no fake money
-WINDOW            = 7     # days in the moving average smoother
-CAP_MULT          = 2.0   # daily count clipped to 2x trailing median (anti-spam burst)
-CAP_LOOKBACK      = 14    # days of history used to compute that median
+WINDOW            = 7      # days in the moving average smoother
+CAP_MULT          = 2.0    # daily count clipped to 2x trailing median (anti-spam burst)
+CAP_LOOKBACK      = 14     # days of history used to compute that median
 
-# DEK reward token parameters
-DEK_PER_TRADE_BPS  = 10   # basis points of trade value awarded as DEK (0.10%)
-DEK_PER_ORACLE_DAY = 50   # DEK awarded to an oracle node per validated daily submission
-DEK_MAX_SUPPLY     = 20_502_006  # strict hard cap
-TARGET_BLOCK_TIME_SEC = 86_400  # 24 hours per daily epoch block
-DIFFICULTY_LOOKBACK_BLOCKS = 14 # difficulty retargets every 14 blocks based on active oracle count
+# DEK Token Parameters (Strict Hard Cap)
+DEK_PER_TRADE_BPS  = 10          # 0.10% basis points rebate per trade
+DEK_PER_ORACLE_DAY = 50          # DEK awarded to an oracle node per validated daily epoch block
+DEK_MAX_SUPPLY     = 20_502_006  # strict hard cap, unalterable
+TARGET_BLOCK_TIME_SEC = 86_400   # exactly 24 hours per daily epoch block
+DIFFICULTY_LOOKBACK_BLOCKS = 14  # retargeted every 14 blocks
 
-# Solvency and Anti-Whale Liquidity Controls
-MAX_ASSET_OPEN_INTEREST      = 250_000.0  # aggregate exposure cap per language index
+# Solvency and Anti-Whale Liquidity Controls (Denominated in DEK)
+MAX_ASSET_OPEN_INTEREST      = 250_000.0  # aggregate exposure cap per language index in DEK
 MAX_USER_OPEN_INTEREST_RATIO = 0.15       # maximum 15% of open interest held by one user
-MIN_ORDER_VALUE              = 1.0        # minimum 1.0 USDT order size
+MIN_ORDER_VALUE              = 1.0        # minimum 1.0 DEK order size
+
+# Sharded Verification and Anti-Lazy Node Parameters
+SHARD_SAMPLE_SIZE      = 200     # each node verifies exactly 200 assigned repos per epoch
+NODE_STAKE_REQUIREMENT = 100.0   # DEK staked to participate in active oracle validation
+POTOP_HMAC_ALGO        = "sha256"# Proof of Tree Object Possession algorithm

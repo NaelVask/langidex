@@ -592,7 +592,7 @@
       <div id="walletBadge" style="display:flex; align-items:center; gap:8px;">
         <span style="font-size:11px; color:var(--text-secondary);">WALLET:</span>
         <span class="num" id="userAddressLabel" style="font-size:11px; color:var(--brand-purple); font-weight:600;">0x...Disconnected</span>
-        <span class="num" id="userBalanceLabel" style="font-size:12px; font-weight:700; margin-left:6px;"><span class="num" id="userBalanceLabel" style="font-size:12px; font-weight:700; margin-left:6px;">$0.00 USDT</span>.00 USDT</span> <span class="num" id="userDekLabel" style="font-size:11px; font-weight:700; color:#10b981; margin-left:6px; background:rgba(16,185,129,0.12); padding:2px 6px; border-radius:3px;">0.00 DEK</span>
+        <span class="num" id="userBalanceLabel" style="font-size:12px; font-weight:700; color:#10b981; background:rgba(16,185,129,0.12); padding:3px 8px; border-radius:4px;"><span id="dekVal">0.00</span> 덱 DEK</span>
       </div>
       <button class="btn-ghost" onclick="openDepositModal()">Deposit</button>
       <button class="btn-brand" id="btnConnect" onclick="openConnectModal()">Connect Keypair</button>
@@ -602,7 +602,7 @@
   <!-- Market Header Ticker Bar -->
   <div class="market-ticker-bar">
     <div class="pair-badge">
-      <span class="pair-symbol" id="curPairSymbol">RS/USDT</span>
+      <span class="pair-symbol" id="curPairSymbol">RS/DEK</span>
       <span class="pair-asset-tag" id="curPairTag">Systems & Web3</span>
     </div>
 
@@ -753,7 +753,7 @@
                 <th>Side</th>
                 <th>Executed Units</th>
                 <th>Fill Price</th>
-                <th style="text-align:right;">Total (USDT)</th>
+                <th style="text-align:right;">Total (DEK)</th>
               </tr>
             </thead>
             <tbody id="historyTableBody">
@@ -808,13 +808,13 @@
 
         <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-secondary);">
           <span>Available Balance</span>
-          <span class="num" id="availBalanceLabel">$0.00 USDT</span>
+          <span class="num" id="availBalanceLabel">0.00 DEK</span>
         </div>
 
         <div class="input-box">
           <span class="input-label">Order Value</span>
           <input type="number" id="orderInputPoints" placeholder="0.00" min="0" oninput="calcOrderUnits()">
-          <span class="input-label" style="color:#fff;">USDT</span>
+          <span class="input-label" style="color:#fff;">DEK</span>
         </div>
 
         <div class="slider-pips">
@@ -915,11 +915,11 @@
         <button class="btn-ghost" onclick="closeDepositModal()">✕</button>
       </div>
       <p style="font-size:12px; color:var(--text-secondary);">
-        Specify amount of USDT to deposit into your self-custody exchange ledger:
+        Specify amount of DEK to deposit into your self-custody exchange ledger:
       </p>
       <div class="input-box">
         <input type="number" id="depositInput" placeholder="Amount (e.g. 500)" min="1" style="width:80%;">
-        <span class="input-label" style="color:#fff;">USDT</span>
+        <span class="input-label" style="color:#fff;">DEK</span>
       </div>
       <div style="display:flex; gap:6px;">
         <button class="pip-btn" onclick="$('depositInput').value=100">$100</button>
@@ -1028,8 +1028,8 @@
           await loadUserData();
         } else {
           $("userAddressLabel").textContent = "Disconnected";
-          $("userBalanceLabel").textContent = "$0.00 USDT";
-          $("availBalanceLabel").textContent = "$0.00 USDT";
+          $("dekVal").textContent = fmt(p.dek || p.total || 0, 2);
+          $("availBalanceLabel").textContent = "0.00 DEK";
         }
 
         loadLeaderboard();
@@ -1074,7 +1074,7 @@
       tbody.innerHTML = list.map(a => `
         <tr class="${a.symbol === curSym ? 'active-row' : ''}" onclick="selectAsset('${a.symbol}')">
           <td>
-            <div style="font-weight:700; color:#fff;">${a.symbol}<span style="color:var(--text-tertiary); font-size:10px;">/USDT</span></div>
+            <div style="font-weight:700; color:#fff;">${a.symbol}<span style="color:var(--text-tertiary); font-size:10px;">/DEK</span></div>
             <div style="font-size:10px; color:var(--text-secondary);">${a.name}</div>
           </td>
           <td class="num" style="font-weight:600;">$${fmt(a.price, 2)}</td>
@@ -1090,7 +1090,7 @@
       const a = assets.find(x => x.symbol === sym);
       if (!a) return;
 
-      $("curPairSymbol").textContent = `${a.symbol}/USDT`;
+      $("curPairSymbol").textContent = `${a.symbol}/DEK`;
       $("curPairTag").textContent = a.category;
       $("topPrice").textContent = `$${fmt(a.price, 2)}`;
       $("topRepos").textContent = fmt(a.latest_count, 0);
@@ -1348,7 +1348,7 @@
     function updateBalanceLabel() {
       if (!userPortfolio) return;
       if (curSide === "buy") {
-        $("availBalanceLabel").textContent = `$${fmt(userPortfolio.cash)} USDT`;
+        $("availBalanceLabel").textContent = `$${fmt(userPortfolio.cash)} DEK`;
       } else {
         const pos = userPortfolio.positions.find(p => p.symbol === curSym);
         const qty = pos ? pos.units : 0;
@@ -1412,7 +1412,7 @@
         const addr = p.token;
         const shortAddr = addr.length > 12 ? (addr.slice(0, 6) + "..." + addr.slice(-4)) : addr;
         $("userAddressLabel").textContent = shortAddr;
-        $("userBalanceLabel").textContent = `$${fmt(p.total)} USDT`;
+        $("dekVal").textContent = fmt(p.dek || p.total || 0, 2);
         $("btnConnect").textContent = "Account";
         updateBalanceLabel();
 
@@ -1432,7 +1432,7 @@
             </tr>
           `).join("");
         } else {
-          ptbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:20px;">No open positions. Available USDT: $${fmt(p.cash)}.</td></tr>`;
+          ptbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:20px;">No open positions. Available DEK: ${fmt(p.cash)}.</td></tr>`;
         }
 
         const htbody = $("historyTableBody");
@@ -1440,7 +1440,7 @@
           htbody.innerHTML = p.recent_trades.map(t => `
             <tr>
               <td style="color:var(--text-tertiary); font-size:11px;">${t.ts}</td>
-              <td><b>${t.symbol}/USDT</b></td>
+              <td><b>${t.symbol}/DEK</b></td>
               <td><span class="num ${t.side === 'buy' ? 'up' : 'down'}">${t.side.toUpperCase()}</span></td>
               <td class="num">${fmt(t.units, 4)}</td>
               <td class="num">$${fmt(t.price, 2)}</td>
@@ -1462,7 +1462,7 @@
           <tr>
             <td>#${i + 1}</td>
             <td class="num">${b.address}</td>
-            <td class="num" style="font-weight:600;">$${fmt(b.total, 2)} USDT</td>
+            <td class="num" style="font-weight:600;">$${fmt(b.total, 2)} DEK</td>
             <td class="num ${b.return_pct >= 0 ? 'up' : 'down'}" style="text-align:right; font-weight:600;">
               ${b.return_pct >= 0 ? '+' : ''}${fmt(b.return_pct, 2)}%
             </td>
