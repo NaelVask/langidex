@@ -61,7 +61,17 @@ def assets(request: Request):
         days_rows = c.execute("SELECT DISTINCT day FROM prices ORDER BY day ASC").fetchall()
         all_days = [r["day"] for r in days_rows]
 
-        tot_counts = dict(c.execute("SELECT day, SUM(count) as s FROM raw_counts GROUP BY day").fetchall())
+        tot_counts = dict(c.execute("""
+            SELECT day, SUM(count) as s FROM (
+                SELECT day, symbol, count,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY day, symbol
+                           ORDER BY CASE WHEN source='composite' THEN 1 WHEN source='github' THEN 2 ELSE 3 END
+                       ) as rn
+                FROM raw_counts
+            ) WHERE rn = 1
+            GROUP BY day
+        """).fetchall())
 
         out = []
         for sym, name in LANGUAGES.items():
@@ -70,7 +80,16 @@ def assets(request: Request):
             rows = c.execute(
                 """SELECT p.day, p.price, COALESCE(r.count, 0) as count
                    FROM prices p
-                   LEFT JOIN raw_counts r ON p.day = r.day AND p.symbol = r.symbol
+                   LEFT JOIN (
+                       SELECT day, symbol, count FROM (
+                           SELECT day, symbol, count,
+                                  ROW_NUMBER() OVER (
+                                      PARTITION BY day, symbol
+                                      ORDER BY CASE WHEN source='composite' THEN 1 WHEN source='github' THEN 2 ELSE 3 END
+                                  ) as rn
+                           FROM raw_counts
+                       ) WHERE rn = 1
+                   ) r ON p.day = r.day AND p.symbol = r.symbol
                    WHERE p.symbol = ?
                    ORDER BY p.day ASC""", (sym,)
             ).fetchall()

@@ -24,13 +24,14 @@ def rebuild_prices():
     with conn() as c:
         # Prefer composite (multi-source) rows; fall back to github-only rows.
         rows = c.execute("""
-            SELECT day, symbol,
-                   COALESCE(
-                       (SELECT count FROM raw_counts r2 WHERE r2.day=r.day AND r2.symbol=r.symbol AND r2.source='composite'),
-                       count
-                   ) AS count
-            FROM raw_counts r
-            WHERE source='github'
+            SELECT day, symbol, count FROM (
+                SELECT day, symbol, count,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY day, symbol
+                           ORDER BY CASE WHEN source='composite' THEN 1 WHEN source='github' THEN 2 ELSE 3 END
+                       ) as rn
+                FROM raw_counts
+            ) WHERE rn = 1
             ORDER BY day
         """).fetchall()
         days = sorted({r["day"] for r in rows})
@@ -48,7 +49,7 @@ def rebuild_prices():
                 clipped[s][d] = capped * SYBIL_CREDIBILITY_FACTOR  # sybil haircut
                 hist.append(v)  # track original for median history
 
-        # Steps 3-5: smooth → share → index
+        # Steps 3-5: smooth -> share -> index
         base, out = None, []
         for i, d in enumerate(days):
             win = days[max(0, i - WINDOW + 1): i + 1]
