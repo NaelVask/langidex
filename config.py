@@ -62,4 +62,6 @@ CAP_LOOKBACK      = 14    # days of history used to compute that median
 # DEK reward token parameters
 DEK_PER_TRADE_BPS  = 10   # basis points of trade value awarded as DEK (0.10%)
 DEK_PER_ORACLE_DAY = 50   # DEK awarded to an oracle node per validated daily submission
-DEK_MAX_SUPPLY     = 21_000_000  # hard cap, mirrors Bitcoin symbolically
+DEK_MAX_SUPPLY     = 20_502_006  # strict hard cap
+TARGET_BLOCK_TIME_SEC = 86_400  # 24 hours per daily epoch block
+DIFFICULTY_LOOKBACK_BLOCKS = 14 # difficulty retargets every 14 blocks based on active oracle count
