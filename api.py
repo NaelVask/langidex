@@ -11,6 +11,8 @@ from slowapi.errors import RateLimitExceeded
 from config import LANGUAGES, LANGUAGE_META, START_CASH
 from db import conn, init
 import trading
+import crypto_engine as ce
+import immutable_ledger as il
 
 init()
 
@@ -35,6 +37,15 @@ class Deposit(BaseModel):
 
 class Burn(BaseModel):
     amount: float
+
+class SignedTransaction(BaseModel):
+    payload: dict
+    signature: str
+
+class P2PPeerPing(BaseModel):
+    node_id: str
+    address: str
+    onion_url: Optional[str] = None
 
 # Genesis block manifest and cryptographic hash proof
 GENESIS_BLOCK = {
@@ -311,5 +322,56 @@ def burn_address_info(request: Request):
 def tokenomics(request: Request):
     """Returns transparent real-time token supply, minted metrics, and remaining allocation."""
     return trading.tokenomics_summary()
+
+# --- Cryptographic Non-Custodial Endpoints (Phases 1, 2 & 3) ---
+
+@app.post("/api/signed_tx")
+@limiter.limit("30/minute")
+def submit_signed_tx(request: Request, tx: SignedTransaction):
+    """Ingests, cryptographically verifies, and commits a signed user transaction into the Merkle DAG."""
+    try:
+        receipt = il.append_signed_event(tx.payload, tx.signature)
+        return {"status": "confirmed", "receipt": receipt}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+@app.get("/api/ledger_audit")
+@limiter.limit("20/minute")
+def get_ledger_audit(request: Request):
+    """Verifies that zero blocks or balances have been manipulated without proper user signatures."""
+    return il.audit_full_chain()
+
+@app.get("/api/p2p/blocks")
+@limiter.limit("30/minute")
+def p2p_blocks(request: Request, since: int = Query(0)):
+    """P2P sync endpoint: permits peer nodes to download verified signed blocks."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT * FROM signed_events WHERE block_index > ? ORDER BY block_index ASC LIMIT 100",
+            (since,)
+        ).fetchall()
+    return {"blocks": [dict(r) for r in rows]}
+
+@app.post("/api/p2p/ping")
+@limiter.limit("30/minute")
+def p2p_ping(request: Request, ping: P2PPeerPing):
+    """Registers an autonomous peer node into the distributed routing table."""
+    with conn() as c:
+        c.execute(
+            """INSERT INTO p2p_peers(node_id, address, onion_url, last_seen)
+               VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(node_id) DO UPDATE SET
+               address=excluded.address, onion_url=excluded.onion_url, last_seen=CURRENT_TIMESTAMP""",
+            (ping.node_id, ping.address, ping.onion_url)
+        )
+    return {"status": "ok"}
+
+@app.get("/api/p2p/peers")
+@limiter.limit("20/minute")
+def p2p_peer_list(request: Request):
+    """Returns the list of active peer nodes participating in the network."""
+    with conn() as c:
+        rows = c.execute("SELECT node_id, address, onion_url, last_seen, block_height FROM p2p_peers ORDER BY last_seen DESC LIMIT 50").fetchall()
+    return {"peers": [dict(r) for r in rows]}
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

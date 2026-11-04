@@ -46,6 +46,43 @@ CREATE TABLE IF NOT EXISTS dek_ledger(
     reason    TEXT,
     ts        TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS verified_proofs(
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    epoch_day     TEXT,
+    symbol        TEXT,
+    repo_name     TEXT,
+    commit_hash   TEXT,
+    tree_hash     TEXT,
+    verifier_node TEXT,
+    merkle_root   TEXT,
+    verified_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_proofs_symbol ON verified_proofs(symbol);
+CREATE INDEX IF NOT EXISTS idx_proofs_day ON verified_proofs(epoch_day);
+
+-- Cryptographically signed immutable event ledger (Phase 1 & 2)
+CREATE TABLE IF NOT EXISTS signed_events(
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_index INTEGER NOT NULL,
+    prev_hash   TEXT NOT NULL,
+    sender      TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    payload     TEXT NOT NULL,
+    signature   TEXT NOT NULL,
+    block_hash  TEXT NOT NULL UNIQUE,
+    created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_events_sender ON signed_events(sender);
+CREATE INDEX IF NOT EXISTS idx_events_block ON signed_events(block_index);
+
+-- Peer-to-peer gossip network registry (Phase 3)
+CREATE TABLE IF NOT EXISTS p2p_peers(
+    node_id      TEXT PRIMARY KEY,
+    address      TEXT NOT NULL,
+    onion_url    TEXT,
+    last_seen    TEXT DEFAULT CURRENT_TIMESTAMP,
+    block_height INTEGER DEFAULT 0
+);
 """
 
 def conn():
@@ -57,7 +94,6 @@ def conn():
 def init():
     with conn() as c:
         c.executescript(SCHEMA)
-        # migrate: add dek column if upgrading from older schema
         try:
             c.execute("ALTER TABLE users ADD COLUMN dek REAL DEFAULT 0.0")
         except Exception:
