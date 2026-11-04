@@ -1,142 +1,97 @@
 # Langdex
 
-Langdex is an open developer adoption index and deterministic market protocol. It measures programming language utilization across public version control systems and software package registries, computing a continuous normalized index for each asset.
+Langdex is an open-source protocol that tracks active programming language adoption across public version control systems and package registries, turning those metrics into daily index prices.
 
-## System Architecture
+Instead of relying on search engine trends or subjective surveys, Langdex derives prices from daily git activity and package downloads, settled against an internal accounting unit called DEK.
 
-The protocol consists of four distinct decoupled layers:
+The protocol runs as an independent reference node over Tor, with validator nodes confirming Git telemetry and solving cryptographic proof-of-work puzzles.
 
-1. Data Collector (`collector.py`):
-   Queries public endpoints across GitHub, PyPI, npm, and crates.io.
-   Filters repository counts using non-fork parameters (`fork:false`) and pulls representative daily package download metrics.
-   Stores timestamped integers into SQLite under WAL mode.
+## How It Works
 
-2. Deterministic Index Engine (`index_engine.py`):
-   Processes raw observations through a 5-stage transformation pipeline:
-   - Median burst suppression: Truncates daily counts exceeding 2.0x of the trailing 14-day median.
-   - Sybil discount: Applies an initial 0.85 scaling factor against unverified single-node telemetry.
-   - 7-day smoothing: Computes a rolling 7-day simple moving average to eliminate weekday versus weekend commit variance.
-   - Relative share calculation: Evaluates each language share as a fraction of total ecosystem activity across all tracked assets.
-   - Base-100 normalization: Re-indexes each language against its share on day one of observation.
+### 1. Data Collection
+Every 24 hours, the node samples developer activity across multiple independent sources:
+* **Git Smart HTTP Protocol:** Fetches the latest HEAD commit SHAs directly from representative repositories (e.g. CPython, Rust, Go, React, Solidity) via `info/refs?service=git-upload-pack` without relying on third-party scrapers.
+* **Package Registries:** Queries daily download metrics from PyPI, npm, and crates.io.
+* **Multi-Forge Tracking:** Ingests activity signals from GitHub, GitLab, Codeberg (Gitea API), and Software Heritage persistent identifiers (SWHIDs).
 
-3. Execution and Ledger Core (`trading.py`, `db.py`):
-   Maintains user accounts identified by 160-bit hex keypairs.
-   Manages spot balance accounting, position valuation, weighted average cost basis, and DEK protocol incentive emissions (0.10% basis points per executed order volume).
+### 2. Index Calculation
+Raw counts are normalized through a deterministic pipeline:
+1. **Trailing Median Filter:** Daily values are clipped at 2x the 14-day median to suppress artificial spam surges.
+2. **Weekend Smoothing:** A 7-day rolling window removes typical weekend drops in developer output.
+3. **Ecosystem Share:** Each language's share is calculated as its 7-day moving average divided by total activity across all tracked languages.
+4. **Base Price:** Prices are normalized relative to day zero, starting at 100.00 DEK. A language whose relative share doubles moves to 200.00 DEK.
 
-4. HTTP Transport and Interface (`api.py`, `static/index.html`):
-   FastAPI service exposing REST endpoints for market depth, asset statistics, ledger verification, and the genesis manifest.
-   Trading terminal UI rendered with IBM Plex typography, native Canvas chart pipelines, and an ecosystem distribution bar.
+Prices reflect external software production, not order book speculation. Large trades cannot move the underlying adoption price.
 
-## Mathematical Formulation
+### 3. Proof of Telemetry Work (PoTW) Mining
+Validator nodes participate in daily consensus and earn block rewards (50 DEK per 24-hour epoch):
+1. The validator pulls authentic Git commit hashes for the active day across tracked repositories.
+2. The commits are organized into a binary Merkle tree, producing a Merkle root.
+3. The node solves a Proof of Work puzzle: finding a 32-bit nonce such that:
+   `SHA-256(MerkleRoot + MinerPubKey + EpochDay + Nonce) < TargetDifficulty`
+   (Target requires 16 leading zero bits).
+4. Finding the nonce proves that the validator processed the Git data and spent computational cycles sealing the epoch.
+5. The winning nonce, block hash, and Merkle root are recorded in the local attestation ledger.
 
-Let $C_{i,t}$ denote the raw activity observation for language $i$ on day $t$.
+### 4. Non-Custodial Cryptography
+* **BIP-39 Wallets:** Node keys and user identities are generated from standard 12-word BIP-39 mnemonic seed phrases with SHA-256 checksum validation and PBKDF2 HMAC-SHA512 key stretching.
+* **Ed25519 Signatures:** Transactions and mining proofs are signed with Ed25519 private keys. The server validates signatures mathematically before any ledger mutation.
+* **Immutable Merkle DAG:** Every transaction links to the previous block hash:
+  `BlockHash = SHA-256(CanonicalPayload + Signature + PrevBlockHash)`
+  Tampering with any historical entry invalidates all subsequent blocks. Anyone can verify ledger integrity by calling `/api/ledger_audit`.
 
-1. Median clipping:
-   $$C'_{i,t} = \min\left(C_{i,t}, 2.0 \cdot \text{median}(C_{i, t-14 \dots t-1})\right)$$
+### 5. Settlement Mechanics
+* **Fixed Supply:** DEK has an absolute hard cap of 20,502,006 tokens.
+* **No ICO or Presale:** Zero pre-mine, zero investor allocations, zero token sales.
+* **Solvency Protection:** Language positions have aggregate open interest limits and individual exposure caps to guarantee protocol reserves cannot be drained.
+* **Deflationary Burn:** 50% of trade spread fees are directed to `0x000000000000000000000000000000000000dead`.
 
-2. Sybil discount:
-   $$\tilde{C}_{i,t} = 0.85 \cdot C'_{i,t}$$
+## Installation and Quickstart
 
-3. Seven-day rolling average:
-   $$A_{i,t} = \frac{1}{7} \sum_{k=0}^{6} \tilde{C}_{i, t-k}$$
+### Prerequisites
+* Python 3.10+
+* Git
+* SQLite3
 
-4. Relative ecosystem proportion:
-   $$S_{i,t} = \frac{A_{i,t}}{\sum_{j} A_{j,t}}$$
-
-5. Index price quotation:
-   $$P_{i,t} = 100.0 \cdot \frac{S_{i,t}}{S_{i,0}}$$
-
-User trade orders do not shift $P_{i,t}$. The quotation reflects code production and distribution metrics rather than capital inflow.
-
-## Tracked Assets
-
-| Symbol | Language | Category | Primary Registry Source |
-| :--- | :--- | :--- | :--- |
-| PY | Python | AI and Data | PyPI |
-| JS | JavaScript | Web and Cloud | npm |
-| TS | TypeScript | Web and Cloud | npm |
-| RS | Rust | Systems and Web3 | crates.io |
-| GO | Go | Cloud and Infra | pkg.go.dev |
-| JV | Java | Enterprise | Maven Central |
-| CPP | C++ | Systems and Games | Conan / vcpkg |
-| CS | C# | Enterprise and Games | NuGet |
-| PHP | PHP | Web Legacy | Packagist |
-| KT | Kotlin | Mobile and JVM | Maven Central |
-| SW | Swift | Mobile and Apple | SwiftPM |
-| RB | Ruby | Web and Scripting | RubyGems |
-| LU | Lua | Embedded and Games | LuaRocks |
-| DA | Dart | Mobile and Client | pub.dev |
-| ZG | Zig | Systems and WebAssembly | ziglang.org |
-| EX | Elixir | Distributed Backend | Hex.pm |
-| SC | Scala | Big Data Pipelines | Maven Central |
-| HS | Haskell | Functional Theory | Hackage |
-| JL | Julia | Scientific Computing | pkg.julialang.org |
-| SL | Solidity | EVM Smart Contracts | npm / hardhat |
-| SH | Shell | DevOps and System Admin | POSIX standard |
-| PL | Perl | System Automation | CPAN |
-
-## Genesis Verification
-
-The genesis block is mathematically anchored to SHA-256 state:
-
-- Protocol: Langdex Protocol - Developer Adoption Index
-- Genesis Hash: `87be4735c1f0c9f85c5e2822b893c097dfa9690ccd4bfa95374036b537090def`
-- Signer Public Key: `0x7a892bF584C8bEb8f682057F7392aA7b25F18dE0`
-
-Verification via standard utilities:
-```bash
-curl -s http://localhost:8000/api/genesis | jq .
-```
-
-## Running the Protocol
-
-### Requirements
-- Python 3.10+
-- SQLite 3.35+
-
-### Installation
+### Setup
 ```bash
 git clone https://github.com/NaelVask/langidex.git
 cd langidex
 pip install -r requirements.txt
 ```
-On Windows, you can also double-click `install.bat`.
 
-### Running the Validator Node (Mining DEK)
-To verify daily open-source telemetry and earn 50.00 DEK per verified epoch block:
-
-```bash
-python miner.py
-```
-On Windows, you can simply double-click `StartMiner.bat`.
-
-The miner prompts once for your wallet address (or 12-word recovery phrase), remembers it, verifies git and registry telemetry, and credits the 50.00 DEK reward directly to your balance.
-
-### Start Local Node / Trading Terminal
+### Running the API and Web UI
 ```bash
 uvicorn api:app --host 127.0.0.1 --port 8000
 ```
-Terminal interface available at `http://127.0.0.1:8000`.
+Open `http://127.0.0.1:8000` in your browser.
 
-### Tor Hidden Service Deployment
-To serve without dependency on public DNS or commercial hosting providers:
+### Running a Validator Miner Node
+To verify the daily Git telemetry and solve the Proof of Work puzzle:
+```bash
+python miner.py
+```
+On first launch, you will be prompted to generate a new 12-word BIP-39 seed phrase or enter an existing one. Your seed phrase is saved to `.miner_wallet`.
 
-Add to `torrc`:
+### Running Over Tor
+Langdex includes hidden service support out of the box. Add the following to your `torrc`:
 ```text
 HiddenServiceDir /var/lib/tor/langdex_service/
 HiddenServicePort 80 127.0.0.1:8000
 ```
-
-Start the Tor daemon and read the generated `.onion` hostname:
+Then start the Tor daemon to get your `.onion` address:
 ```bash
 cat /var/lib/tor/langdex_service/hostname
 ```
 
-## Protocol Architecture & Verifiability
-Langdex is an open-source, non-extractive developer adoption index.
-- Zero pre-mine.
-- Zero private sales, ICOs, or external token offerings.
-- Purely functional oracle block rewards minted strictly for verifying authentic open-source repository telemetry.
+## API Reference
+* `GET /api/assets` - Real-time language index prices, changes, and historical charts
+* `GET /api/oracle_status` - Data source status, multi-source weighting, anti-sybil filters
+* `GET /api/tokenomics` - Circulating supply, total mined, block height, burn stats
+* `GET /api/verified_proofs` - Sealed Git commit hashes and Merkle roots
+* `GET /api/ledger_audit` - Full cryptographic integrity check across all blocks
+* `POST /api/signed_tx` - Submit an Ed25519-signed transaction
+* `GET /api/p2p/peers` - Active peer nodes on the network
 
 ## License
-MIT License. Author: Nael Vask.
+MIT License. Created by Nael Vask.
