@@ -97,7 +97,7 @@ def run_miner():
     rebuild_prices()
 
     print("\n[3/6] Running PoTOP proof-of-telemetry verification (Git Smart HTTP)...")
-    proof_count = verify_and_record_proofs(pubkey, epoch_day)
+    proof_count = verify_and_record_proofs(pubkey, privkey, epoch_day)
     print(f"      {proof_count} repository commit proofs sealed into the attestation ledger.")
 
     # Retrieve latest Merkle root of verified proofs

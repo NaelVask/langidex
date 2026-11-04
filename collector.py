@@ -5,12 +5,11 @@ Sources live:
   - PyPI Stats API      -> daily package downloads for top Python packages
   - npm Stats API       -> daily package downloads for top JS/TS packages
   - crates.io API       -> recent download counts for top Rust crates
-  - Codeberg Gitea API  -> independent European open-source Git repo volume
-  - GitLab Public API   -> recent active projects per language
-  - Software Heritage   -> universal public code archive origin verification
+  - Codeberg Gitea API  -> independent European open-source Git repo search
+  - GitLab Public API   -> active projects per language
   - GitHub Git Trees    -> authentic commit SHA-1 and tree SHA-1 object extraction
 """
-import os, sys, time, datetime as dt, requests, subprocess, hmac, hashlib
+import os, sys, time, datetime as dt, requests, hmac, hashlib
 import urllib.request, json
 from config import LANGUAGES
 from db import conn, init
@@ -151,9 +150,17 @@ def get_codeberg_repos(sym: str) -> int:
     url = "https://codeberg.org/api/v1/repos/search"
     params = {"lang": lang_name, "limit": 1}
     headers = {"Accept": "application/json", "User-Agent": "Langdex-Oracle/1.0"}
-    data = safe_get(url, params=params, headers=headers, label=f"Codeberg-{sym}")
-    if data and "data" in data and isinstance(data["data"], list):
-        return len(data["data"]) * 12
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            total_header = r.headers.get("x-total-count") or r.headers.get("X-Total-Count")
+            if total_header and total_header.isdigit():
+                return int(total_header)
+            data = r.json()
+            if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
+                return len(data["data"])
+    except Exception:
+        pass
     return 0
 
 # -- GitLab source (Public REST API) ----------------------------------------
@@ -165,15 +172,15 @@ def get_gitlab_activity(sym: str) -> int:
     url = "https://gitlab.com/api/v4/projects"
     params = {"with_programming_language": lang_name, "per_page": 20, "order_by": "last_activity_at"}
     headers = {"User-Agent": "Langdex-Oracle/1.0"}
-    data = safe_get(url, params=params, headers=headers, label=f"GitLab-{sym}")
-    if data and isinstance(data, list):
-        return len(data) * 15
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, list):
+                return len(data)
+    except Exception:
+        pass
     return 0
-
-# -- Software Heritage (SWH Persistent Origin Verification) -----------------
-
-def get_swh_verification(sym: str) -> int:
-    return 5
 
 # -- Composite weights -------------------------------------------------------
 
@@ -272,22 +279,6 @@ def resolve_repo_git_objects(repo_name: str) -> tuple[str, str]:
     except Exception:
         pass
 
-    # Fast wire-level fallback via Git Smart HTTP info/refs
-    try:
-        refs_url = f"https://github.com/{repo_name}/info/refs?service=git-upload-pack"
-        req = urllib.request.Request(refs_url, headers={"User-Agent": "git/2.40.0"})
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            content = resp.read()
-            for line in content.split(b"\n"):
-                if b"refs/heads/main" in line or b"refs/heads/master" in line or b"HEAD" in line:
-                    parts = line.strip().split()
-                    if parts and len(parts[0]) >= 40:
-                        sha_part = parts[0][-40:].decode('utf-8', errors='ignore')
-                        return sha_part, hashlib.sha1(f"tree:{sha_part}".encode()).hexdigest()
-    except Exception:
-        pass
-
-    # If offline or completely unreachable, raise an explicit error rather than inventing fake data
     raise ConnectionError(f"Could not reach remote git objects for {repo_name}. Mining requires live network access.")
 
 def compute_node_shard(node_address: str, prev_block_hash: str, candidate_repo_list: list, shard_size: int = 10) -> list:
@@ -308,10 +299,11 @@ def compute_node_shard(node_address: str, prev_block_hash: str, candidate_repo_l
         selected.append(candidate_repo_list[idx])
     return selected
 
-def compute_potop_proof(node_address: str, repo_records: list, epoch_day: str) -> dict:
-    """Builds HMAC Merkle root across verified repository commit trees."""
+def compute_potop_proof(miner_private_key_hex: str, repo_records: list, epoch_day: str) -> dict:
+    """Builds HMAC Merkle root across verified repository commit trees.
+    The HMAC is keyed to the miner's Ed25519 private key, proving possession of the private key."""
     leaf_hashes = []
-    key_bytes = hashlib.sha256(node_address.encode()).digest()
+    key_bytes = hashlib.sha256(miner_private_key_hex.encode()).digest()
 
     for r in repo_records:
         commit_hash = r.get("commit_hash", "")
@@ -338,14 +330,14 @@ def compute_potop_proof(node_address: str, repo_records: list, epoch_day: str) -
         "epoch_day": epoch_day
     }
 
-def verify_and_record_proofs(node_address: str, epoch_day: str, prev_block_hash: str = "87be4735c1f0c9f85c5e2822b893c097dfa9690ccd4bfa95374036b537090def") -> int:
+def verify_and_record_proofs(node_pubkey: str, miner_privkey: str, epoch_day: str, prev_block_hash: str = "87be4735c1f0c9f85c5e2822b893c097dfa9690ccd4bfa95374036b537090def") -> int:
     """Verifies assigned repository shard and commits Proof of Tree Object Possession records to the ledger."""
     all_candidates = []
     for sym, repos in REPRESENTATIVE_REPOS.items():
         for r in repos:
             all_candidates.append({"symbol": sym, "repo_name": r})
 
-    shard = compute_node_shard(node_address, prev_block_hash, all_candidates, shard_size=8)
+    shard = compute_node_shard(node_pubkey, prev_block_hash, all_candidates, shard_size=10)
     verified_records = []
 
     for item in shard:
@@ -359,7 +351,7 @@ def verify_and_record_proofs(node_address: str, epoch_day: str, prev_block_hash:
             "tree_hash": tree_sha
         })
 
-    potop_proof = compute_potop_proof(node_address, verified_records, epoch_day)
+    potop_proof = compute_potop_proof(miner_privkey, verified_records, epoch_day)
     merkle_root = potop_proof["merkle_root"]
 
     with conn() as c:
@@ -367,14 +359,9 @@ def verify_and_record_proofs(node_address: str, epoch_day: str, prev_block_hash:
             c.execute("""
                 INSERT INTO verified_proofs(epoch_day, symbol, repo_name, commit_hash, tree_hash, verifier_node, merkle_root)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (epoch_day, r["symbol"], r["repo_name"], r["commit_hash"], r["tree_hash"], node_address, merkle_root))
+            """, (epoch_day, r["symbol"], r["repo_name"], r["commit_hash"], r["tree_hash"], node_pubkey, merkle_root))
 
     return len(verified_records)
 
 if __name__ == "__main__":
     init()
-    days = int(sys.argv[1]) if len(sys.argv) > 1 else 7
-    today = dt.date.today()
-    for d in range(days, 0, -1):
-        target = (today - dt.timedelta(days=d)).isoformat()
-        collect(target)

@@ -138,7 +138,21 @@ def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str
         if existing:
             return u["dek"] or 0.0
 
+        # Enforce protocol hard cap of 20,502,006 DEK
+        minted_row = c.execute("""
+            SELECT COALESCE(SUM(delta), 0.0) as total_minted
+            FROM dek_ledger
+            WHERE delta > 0 AND (reason LIKE 'Oracle block reward%' OR reason LIKE 'Trade incentive%')
+        """).fetchone()
+        current_minted = minted_row["total_minted"] if minted_row else 0.0
         reward = float(DEK_PER_ORACLE_DAY)
+
+        if current_minted + reward > DEK_MAX_SUPPLY:
+            reward = max(0.0, float(DEK_MAX_SUPPLY - current_minted))
+            if reward <= 0.0:
+                print("[!] Protocol hard cap reached: 20,502,006 DEK. No further emissions permitted.")
+                return u["dek"] or 0.0
+
         c.execute("UPDATE users SET dek = COALESCE(dek, 0.0) + ?, cash = COALESCE(cash, 0.0) + ? WHERE id=?",
                   (reward, reward, u["id"]))
         c.execute("INSERT INTO dek_ledger(user_id, delta, reason) VALUES (?, ?, ?)", (u["id"], reward, reason))
