@@ -25,22 +25,25 @@ Prices reflect external software production, not order book speculation. Large t
 
 ### 3. Proof of Telemetry Work (PoTW) Mining
 Validator nodes participate in daily consensus and earn block rewards (50 DEK per 24-hour epoch):
-1. The validator pulls authentic Git commit hashes for the active day across tracked repositories.
-2. The commits are organized into a binary Merkle tree, producing a Merkle root.
+1. The validator pulls authentic Git commit hashes for the active day across a deterministic shard of representative repositories (10 repositories in Phase 1).
+2. The commits are organized into a binary Merkle tree, producing a Merkle root signed with the node's Ed25519 private key (Proof of Tree Object Possession).
 3. The node solves a Proof of Work puzzle: finding a 32-bit nonce such that:
    `SHA-256(MerkleRoot + MinerPubKey + EpochDay + Nonce) < TargetDifficulty`
    (Target requires 16 leading zero bits).
 4. Finding the nonce proves that the validator processed the Git data and spent computational cycles sealing the epoch.
-5. The winning nonce, block hash, and Merkle root are recorded in the local attestation ledger.
+5. The winning nonce, block hash, and Merkle root are recorded in the attestation ledger.
+6. The reward minting engine enforces a mandatory three-tier consensus verification gate: PoTOP proof existence, Ed25519 signature validity, and PoW nonce difficulty verification. All three must verify mathematically before any DEK is credited.
 
 ### 4. Non-Custodial Cryptography
 * **BIP-39 Wallets:** Node keys and user identities are generated from standard 12-word BIP-39 mnemonic seed phrases with SHA-256 checksum validation and PBKDF2 HMAC-SHA512 key stretching.
+* **Encrypted Storage at Rest:** The miner wallet (`.miner_wallet`) stores keypairs encrypted with AES-256-GCM. Encryption keys are derived via PBKDF2-HMAC-SHA256 (480,000 iterations) from user passphrases. Plaintext private keys and mnemonic words are never persisted to disk. Passphrase and seed phrase inputs use masked terminal handlers to prevent exposure.
 * **Ed25519 Signatures:** Transactions and mining proofs are signed with Ed25519 private keys. The server validates signatures mathematically before any ledger mutation.
 * **Immutable Merkle DAG:** Every transaction links to the previous block hash:
   `BlockHash = SHA-256(CanonicalPayload + Signature + PrevBlockHash)`
   Tampering with any historical entry invalidates all subsequent blocks. Anyone can verify ledger integrity by calling `/api/ledger_audit`.
 
 ### 5. Settlement Mechanics
+* **Phase 1 Architecture:** In the current reference implementation, balances are recorded in a local SQLite ledger for indexing demonstration and paper-trading. User balances represent simulated sandbox positions with zero on-chain settlement. Phase 2 will introduce decentralized multi-node consensus with on-chain token settlement.
 * **Fixed Supply:** DEK has an absolute hard cap of 20,502,006 tokens.
 * **No ICO or Presale:** Zero pre-mine, zero investor allocations, zero token sales.
 * **Solvency Protection:** Language positions have aggregate open interest limits and individual exposure caps to guarantee protocol reserves cannot be drained.
@@ -71,7 +74,7 @@ To verify the daily Git telemetry and solve the Proof of Work puzzle:
 ```bash
 python miner.py
 ```
-On first launch, you will be prompted to generate a new 12-word BIP-39 seed phrase or enter an existing one. Your seed phrase is saved to `.miner_wallet`.
+On first launch, you will be prompted to generate a new 12-word BIP-39 seed phrase or enter an existing one. You will configure a strong passphrase to encrypt your derived keypair at rest using AES-256-GCM. The encrypted envelope is saved to `.miner_wallet`. Plaintext keys and seed phrases are never written to disk.
 
 ### Running Over Tor
 Langdex includes hidden service support out of the box. Add the following to your `torrc`:
