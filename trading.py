@@ -128,8 +128,46 @@ def tokenomics_summary():
     }
 
 def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str = None) -> float:
-    """Awards the daily block reward (50 DEK) to an oracle validator node for a verified epoch."""
+    """Awards the daily block reward (50 DEK) to an oracle validator node for a verified epoch.
+
+    Consensus verification gate: before minting, this function checks that:
+    1. At least one verified_proofs row exists for this node + epoch (PoTOP proof recorded).
+    2. The stored Ed25519 signature on that proof is mathematically valid against the node key.
+
+    If neither condition is met the reward is refused.
+    """
+    import crypto_engine as ce
+
     with conn() as c:
+        # --- Consensus gate: proof must exist and signature must verify ---
+        proof_row = c.execute(
+            "SELECT merkle_root, signature FROM verified_proofs "
+            "WHERE verifier_node=? AND epoch_day=? LIMIT 1",
+            (node_address, epoch_day)
+        ).fetchone()
+
+        if not proof_row:
+            raise PermissionError(
+                f"Consensus rejected: no PoTOP proof recorded for node "
+                f"{node_address[:16]}... on epoch {epoch_day}. "
+                f"Run the full miner pipeline to earn a reward."
+            )
+
+        merkle_root = proof_row["merkle_root"]
+        stored_sig  = proof_row["signature"]
+        proof_payload = {
+            "epoch_day": epoch_day,
+            "merkle_root": merkle_root,
+            "node_pubkey": node_address,
+        }
+
+        if not ce.verify_signature(node_address, proof_payload, stored_sig):
+            raise PermissionError(
+                f"Consensus rejected: Ed25519 signature on proof for epoch "
+                f"{epoch_day} failed verification. Reward refused."
+            )
+        # --- End consensus gate ---
+
         u = c.execute("SELECT id, name, dek FROM users WHERE token=?", (node_address,)).fetchone()
         if not u:
             clean_name = "Node-" + node_address[:8]

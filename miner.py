@@ -5,32 +5,109 @@ Integrates:
 - Multi-source telemetry ingestion and Git Smart HTTP commit verification
 - Strict single-epoch consensus windows
 """
-import os, sys, datetime as dt, hashlib
+import os, sys, datetime as dt, hashlib, json, base64, getpass
 from db import init, conn, backup_db
 from collector import collect, verify_and_record_proofs
 from index_engine import rebuild_prices
 from trading import award_oracle_reward, tokenomics_summary
 import wallet_bip39 as wb
 import pow_engine as pe
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 WALLET_FILE = ".miner_wallet"
 
+def _derive_aes_key(password: str, salt: bytes) -> bytes:
+    """Derives a 256-bit AES key from a user password using PBKDF2-HMAC-SHA256."""
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=480_000)
+    return kdf.derive(password.encode("utf-8"))
+
+def _encrypt_wallet(pub: str, priv: str, password: str) -> None:
+    """Encrypts the keypair to .miner_wallet using AES-256-GCM."""
+    salt = os.urandom(16)
+    nonce = os.urandom(12)
+    key = _derive_aes_key(password, salt)
+    aesgcm = AESGCM(key)
+    plaintext = json.dumps({"pub": pub, "priv": priv}).encode("utf-8")
+    ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+    envelope = {
+        "v": 1,
+        "salt": base64.b64encode(salt).decode(),
+        "nonce": base64.b64encode(nonce).decode(),
+        "ct": base64.b64encode(ciphertext).decode(),
+    }
+    with open(WALLET_FILE, "w", encoding="utf-8") as f:
+        json.dump(envelope, f)
+
+def _decrypt_wallet(password: str) -> tuple[str, str]:
+    """Decrypts and returns (pub, priv) from the encrypted .miner_wallet file."""
+    with open(WALLET_FILE, "r", encoding="utf-8") as f:
+        envelope = json.load(f)
+    salt = base64.b64decode(envelope["salt"])
+    nonce = base64.b64decode(envelope["nonce"])
+    ct = base64.b64decode(envelope["ct"])
+    key = _derive_aes_key(password, salt)
+    aesgcm = AESGCM(key)
+    plaintext = aesgcm.decrypt(nonce, ct, None)
+    data = json.loads(plaintext)
+    return data["pub"], data["priv"]
+
+def _prompt_wallet_password(confirm: bool = False) -> str:
+    """Prompts for a wallet unlock password."""
+    pw = getpass.getpass("Enter wallet password: ")
+    if confirm:
+        pw2 = getpass.getpass("Confirm wallet password: ")
+        if pw != pw2:
+            raise ValueError("Passwords do not match.")
+    return pw
+
+def _is_encrypted_wallet() -> bool:
+    """Returns True if .miner_wallet is in the new encrypted JSON envelope format."""
+    try:
+        with open(WALLET_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return isinstance(data, dict) and "v" in data and "ct" in data
+    except Exception:
+        return False
+
 def get_or_prompt_wallet() -> tuple[str, str]:
     """Returns (pubkey_hex, privkey_hex).
-    Prompts user to import an existing 12-word BIP-39 phrase or generates a fresh one.
+    Reads from an AES-256-GCM encrypted wallet file, or creates a new one.
+    Legacy plaintext wallet files are automatically migrated to encrypted format.
     """
     if os.path.exists(WALLET_FILE):
-        try:
-            with open(WALLET_FILE, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-            if ":" in content:
-                pub, priv = content.split(":", 1)
+        if _is_encrypted_wallet():
+            # Existing encrypted wallet - unlock it
+            print("[*] Encrypted wallet file found. Unlocking...")
+            pw = _prompt_wallet_password()
+            try:
+                pub, priv = _decrypt_wallet(pw)
+                print("[+] Wallet unlocked successfully.\n")
                 return pub, priv
-            elif wb.validate_mnemonic(content):
-                priv, pub = wb.mnemonic_to_keypair(content)
+            except Exception:
+                print("[!] Wrong password or corrupted wallet file.")
+                sys.exit(1)
+        else:
+            # Legacy plaintext wallet - migrate to encrypted format
+            print("[!] Legacy plaintext wallet detected. Migrating to encrypted format...")
+            try:
+                with open(WALLET_FILE, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                if ":" in content:
+                    pub, priv = content.split(":", 1)
+                elif wb.validate_mnemonic(content):
+                    priv, pub = wb.mnemonic_to_keypair(content)
+                else:
+                    raise ValueError("Unrecognized wallet format")
+                print("Set a password to encrypt your wallet at rest.")
+                pw = _prompt_wallet_password(confirm=True)
+                _encrypt_wallet(pub, priv, pw)
+                print("[+] Wallet migrated to AES-256-GCM encrypted storage.\n")
                 return pub, priv
-        except Exception:
-            pass
+            except Exception as e:
+                print(f"[!] Migration failed: {e}")
+                sys.exit(1)
 
     print("=" * 64)
     print("             LANGDEX PROTOCOL: VALIDATOR MINER             ")
@@ -63,10 +140,12 @@ def get_or_prompt_wallet() -> tuple[str, str]:
         print("*" * 64 + "\n")
 
     priv, pub = wb.mnemonic_to_keypair(phrase)
-    # Store only derived keypair, never plain mnemonic words, to protect user security
-    with open(WALLET_FILE, "w", encoding="utf-8") as f:
-        f.write(f"{pub}:{priv}")
-    print(f"[+] Validator keypair derived and secured in {WALLET_FILE}.\n")
+
+    # Encrypt the wallet at rest with AES-256-GCM (never store plaintext keys)
+    print("Set a password to encrypt your wallet file at rest.")
+    pw = _prompt_wallet_password(confirm=True)
+    _encrypt_wallet(pub, priv, pw)
+    print(f"[+] Wallet encrypted and saved to {WALLET_FILE}.\n")
     return pub, priv
 
 def run_miner():
