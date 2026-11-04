@@ -936,7 +936,7 @@
         <button class="btn-ghost" onclick="closeConnectModal()">✕</button>
       </div>
       <p style="font-size:12px; color:var(--text-secondary); margin: 8px 0 10px 0;">
-        Enter your public validator address or trader ID:
+        Enter your validator public key (from <code>python miner.py</code>) to connect your mined balance, or click Generate Public ID:
       </p>
       <div class="input-box" style="margin-bottom:12px;">
         <input type="text" id="walletInput" placeholder="Enter public address (e.g. 0x8a7f... or node public key)" style="width:100%; height:36px; background:transparent; border:none; color:#fff; font-family:monospace; font-size:12px; outline:none;" />
@@ -949,30 +949,6 @@
         <button class="btn-ghost" onclick="generateRandomPublicAddress()" style="flex:1;">Generate Public ID</button>
         <button class="btn-brand" onclick="confirmConnect()" style="flex:1;">Connect</button>
       </div>
-    </div>
-  </div>
-
-  <!-- Deposit Modal -->
-  <div class="modal-backdrop" id="depositModal">
-    <div class="modal-window">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="font-size:14px; font-weight:700;">Fund Trading Balance</h3>
-        <button class="btn-ghost" onclick="closeDepositModal()">✕</button>
-      </div>
-      <p style="font-size:12px; color:var(--text-secondary);">
-        Specify amount of DEK to add to your paper-trading sandbox balance (simulated positions only, no on-chain settlement):
-      </p>
-      <div class="input-box">
-        <input type="number" id="depositInput" placeholder="Amount (e.g. 500)" min="1" style="width:80%;">
-        <span class="input-label" style="color:#fff;">DEK</span>
-      </div>
-      <div style="display:flex; gap:6px;">
-        <button class="pip-btn" onclick="$('depositInput').value=100">100 DEK</button>
-        <button class="pip-btn" onclick="$('depositInput').value=500">500 DEK</button>
-        <button class="pip-btn" onclick="$('depositInput').value=1000">1,000 DEK</button>
-        <button class="pip-btn" onclick="$('depositInput').value=5000">5,000 DEK</button>
-      </div>
-      <button class="btn-brand" onclick="confirmDeposit()" style="width:100%; margin-top:6px;">Confirm Deposit</button>
     </div>
   </div>
 
@@ -1068,26 +1044,44 @@
         generateRandomPublicAddress();
         raw = $("walletInput").value.trim();
       }
-      const res = await api("/api/signup", {
-        method: "POST",
-        body: JSON.stringify({ name: "Trader", address: raw })
-      });
-      userToken = res.token;
-      localStorage.setItem("bc_address", userToken);
-      localStorage.removeItem("tx_address");
-      closeConnectModal();
-      await loadUserData();
+      try {
+        const res = await api("/api/signup", {
+          method: "POST",
+          body: JSON.stringify({ name: "Trader", address: raw })
+        });
+        userToken = res.token;
+        localStorage.setItem("bc_address", userToken);
+        localStorage.removeItem("tx_address");
+        closeConnectModal();
+        await loadUserData();
+      } catch (err) {
+        alert("Connection failed: " + err.message);
+      }
     }
 
     async function confirmDeposit() {
+      if (!userToken) {
+        closeDepositModal();
+        openConnectModal();
+        alert("Please connect a wallet or generate a public ID first.");
+        return;
+      }
       const amt = parseFloat($("depositInput").value) || 0;
-      if (amt <= 0) return;
-      await api("/api/deposit", {
-        method: "POST",
-        body: JSON.stringify({ amount: amt })
-      });
-      closeDepositModal();
-      await loadUserData();
+      if (amt <= 0) {
+        alert("Please enter a positive DEK amount to deposit.");
+        return;
+      }
+      try {
+        await api("/api/deposit", {
+          method: "POST",
+          body: JSON.stringify({ amount: amt })
+        });
+        $("depositInput").value = "";
+        closeDepositModal();
+        await loadUserData();
+      } catch (err) {
+        alert("Deposit failed: " + err.message);
+      }
     }
 
     async function fetchGenesis() {
@@ -1116,7 +1110,7 @@
           await loadUserData();
         } else {
           $("userAddressLabel").textContent = "Disconnected";
-          $("dekVal").textContent = fmt(p.dek || p.total || 0, 2);
+          $("dekVal").textContent = "0.00";
           $("availBalanceLabel").textContent = "0.00 DEK";
         }
 
