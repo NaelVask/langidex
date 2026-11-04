@@ -133,12 +133,28 @@ def get_or_prompt_wallet() -> tuple[str, str]:
     choice = input("\nEnter choice (1 or 2): ").strip()
 
     if choice == "2":
+        import mnemonic
+        _m_checker = mnemonic.Mnemonic("english")
         while True:
-            raw = getpass.getpass("\nEnter your dedicated Langdex 12-word BIP-39 seed phrase (hidden input):\n> ").strip()
-            if not wb.validate_mnemonic(raw):
-                print("[!] Invalid BIP-39 seed phrase or failed checksum. Check spelling and retry.\n")
+            print("\nPaste your dedicated 12-word BIP-39 seed phrase below.")
+            print("(Note: Input is hidden for security. Pasted characters will not appear on screen)")
+            raw = getpass.getpass("> ").strip()
+            if not raw:
+                print("[!] No input received. Make sure to paste your phrase and press Enter.\n")
                 continue
-            phrase = " ".join(raw.lower().split())
+            words = raw.lower().split()
+            if len(words) != 12:
+                print(f"[!] Found {len(words)} words. A standard BIP-39 seed phrase requires exactly 12 words.\n")
+                continue
+            unknown = [w for w in words if w not in _m_checker.wordlist]
+            if unknown:
+                print(f"[!] Unrecognized BIP-39 words: {', '.join(unknown)}. Check spelling and retry.\n")
+                continue
+            if not wb.validate_mnemonic(" ".join(words)):
+                print("[!] BIP-39 checksum verification failed. The 12th word does not match the mathematical checksum of the preceding words. Check word order and spelling.\n")
+                continue
+            phrase = " ".join(words)
+            print("[+] BIP-39 checksum verified successfully.\n")
             break
     else:
         phrase = wb.generate_mnemonic()
