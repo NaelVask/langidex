@@ -27,18 +27,12 @@ def get_or_prompt_wallet() -> str:
     print()
 
     while True:
-        raw = input("Enter your Langdex Wallet Address or 12-Word Recovery Phrase:\n> ").strip()
+        raw = input("Enter your Langdex Node Address:\n> ").strip()
         if not raw:
-            print("[!] Address or phrase cannot be empty. Please try again.\n")
+            print("[!] Address cannot be empty. Please try again.\n")
             continue
 
-        if " " in raw:
-            norm = " ".join(raw.lower().split())
-            derived = "0x" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:40]
-            print(f"[i] 12-word seed phrase recognized. Derived Address: {derived}")
-            addr = derived
-        else:
-            addr = raw
+        addr = raw
 
         with open(WALLET_FILE, "w", encoding="utf-8") as f:
             f.write(addr)

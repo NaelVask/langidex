@@ -132,15 +132,11 @@ Start the Tor daemon and read the generated `.onion` hostname:
 cat /var/lib/tor/langdex_service/hostname
 ```
 
-## Support Protocol Development & On-Chain Liquidity
-Langdex is an autonomous, open-source protocol built with zero venture capital, no pre-mine, and no token sale.
-
-To support autonomous smart contract deployment and initial decentralized liquidity pool pairing (Uniswap / Aerodrome on Ethereum L2) to make DEK swappable on-chain for BTC and ETH:
-
-- **Bitcoin Donation Address (Native SegWit):**
-  `bc1qtpfpmm2f3eghnhp8ke854gsql045tqxza708e2`
-
-All contributions are directed exclusively toward bootstrapping cross-chain liquidity pools and sustained oracle node infrastructure.
+## Protocol Architecture & Verifiability
+Langdex is an open-source, non-extractive developer adoption index.
+- Zero pre-mine.
+- Zero private sales, ICOs, or external token offerings.
+- Purely functional oracle block rewards minted strictly for verifying authentic open-source repository telemetry.
 
 ## License
 MIT License. Author: Nael Vask.
