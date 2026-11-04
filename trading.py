@@ -127,16 +127,19 @@ def tokenomics_summary():
         "denomination": BASE_DENOMINATION
     }
 
-def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str = None) -> float:
+def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str = None,
+                        pow_nonce: int = None, pow_difficulty: int = 16) -> float:
     """Awards the daily block reward (50 DEK) to an oracle validator node for a verified epoch.
 
     Consensus verification gate: before minting, this function checks that:
     1. At least one verified_proofs row exists for this node + epoch (PoTOP proof recorded).
     2. The stored Ed25519 signature on that proof is mathematically valid against the node key.
+    3. The supplied Proof-of-Work nonce satisfies the target difficulty over the Merkle root.
 
-    If neither condition is met the reward is refused.
+    If any condition fails the reward is refused.
     """
     import crypto_engine as ce
+    import pow_engine as pe
 
     with conn() as c:
         # --- Consensus gate: proof must exist and signature must verify ---
@@ -165,6 +168,19 @@ def award_oracle_reward(node_address: str, epoch_day: str, potop_proof_root: str
             raise PermissionError(
                 f"Consensus rejected: Ed25519 signature on proof for epoch "
                 f"{epoch_day} failed verification. Reward refused."
+            )
+
+        # --- PoW gate: nonce must satisfy difficulty target ---
+        if pow_nonce is None:
+            raise PermissionError(
+                "Consensus rejected: no Proof-of-Work nonce supplied. "
+                "Run the full miner pipeline to solve the PoW puzzle."
+            )
+
+        if not pe.verify_pow_proof(merkle_root, node_address, epoch_day, pow_nonce, pow_difficulty):
+            raise PermissionError(
+                f"Consensus rejected: PoW nonce {pow_nonce} does not satisfy "
+                f"{pow_difficulty}-bit difficulty target. Reward refused."
             )
         # --- End consensus gate ---
 

@@ -54,9 +54,19 @@ def _decrypt_wallet(password: str) -> tuple[str, str]:
     return data["pub"], data["priv"]
 
 def _prompt_wallet_password(confirm: bool = False) -> str:
-    """Prompts for a wallet unlock password."""
+    """Prompts for a wallet unlock password with minimum strength enforcement."""
     pw = getpass.getpass("Enter wallet password: ")
     if confirm:
+        if len(pw) < 8:
+            raise ValueError("Password must be at least 8 characters.")
+        has_upper = any(c.isupper() for c in pw)
+        has_lower = any(c.islower() for c in pw)
+        has_digit = any(c.isdigit() for c in pw)
+        if not (has_upper and has_lower and has_digit):
+            raise ValueError(
+                "Password must contain at least one uppercase letter, "
+                "one lowercase letter, and one digit."
+            )
         pw2 = getpass.getpass("Confirm wallet password: ")
         if pw != pw2:
             raise ValueError("Passwords do not match.")
@@ -124,7 +134,7 @@ def get_or_prompt_wallet() -> tuple[str, str]:
 
     if choice == "2":
         while True:
-            raw = input("\nEnter your dedicated Langdex 12-word BIP-39 seed phrase:\n> ").strip()
+            raw = getpass.getpass("\nEnter your dedicated Langdex 12-word BIP-39 seed phrase (hidden input):\n> ").strip()
             if not wb.validate_mnemonic(raw):
                 print("[!] Invalid BIP-39 seed phrase or failed checksum. Check spelling and retry.\n")
                 continue
@@ -195,7 +205,7 @@ def run_miner():
     print(f"      Sealed Block Hash: {block_hash}")
 
     print("\n[5/6] Minting validator block reward...")
-    latest_bal = award_oracle_reward(pubkey, epoch_day)
+    latest_bal = award_oracle_reward(pubkey, epoch_day, pow_nonce=nonce, pow_difficulty=16)
 
     print("\n[6/6] Creating rolling ACID ledger backup...")
     backup_file = backup_db()
