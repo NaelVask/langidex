@@ -38,13 +38,13 @@ def get_or_prompt_wallet() -> tuple[str, str]:
     print()
 
     print("Choose wallet option:")
-    print("  [1] Generate a new secure 12-word BIP-39 seed phrase")
-    print("  [2] Import existing 12-word BIP-39 seed phrase")
+    print("  [1] Generate a new secure 12-word BIP-39 seed phrase (Recommended)")
+    print("  [2] Import existing Langdex dedicated seed phrase (NEVER use an existing Bitcoin/ETH wallet phrase)")
     choice = input("\nEnter choice (1 or 2): ").strip()
 
     if choice == "2":
         while True:
-            raw = input("\nEnter your 12-word BIP-39 seed phrase:\n> ").strip()
+            raw = input("\nEnter your dedicated Langdex 12-word BIP-39 seed phrase:\n> ").strip()
             if not wb.validate_mnemonic(raw):
                 print("[!] Invalid BIP-39 seed phrase or failed checksum. Check spelling and retry.\n")
                 continue
@@ -53,9 +53,10 @@ def get_or_prompt_wallet() -> tuple[str, str]:
     else:
         phrase = wb.generate_mnemonic()
         print("\n" + "*" * 64)
-        print("WRITE DOWN YOUR 12-WORD BIP-39 RECOVERY SEED PHRASE:")
+        print("YOUR DEDICATED LANGDEX 12-WORD BIP-39 RECOVERY SEED PHRASE:")
         print(f"  {phrase}")
         print("Keep this secret. It derives your Ed25519 validator private key.")
+        print("DO NOT reuse this phrase for any other financial wallet.")
         print("*" * 64 + "\n")
 
     priv, pub = wb.mnemonic_to_keypair(phrase)

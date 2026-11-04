@@ -603,7 +603,7 @@
         <span class="num" id="userAddressLabel" style="font-size:11px; color:var(--brand-purple); font-weight:600;">0x...Disconnected</span>
         <span class="num" id="userBalanceLabel" style="font-size:12px; font-weight:700; color:#10b981; background:rgba(16,185,129,0.12); padding:3px 8px; border-radius:4px;"><span id="dekVal">0.00</span> 덱 DEK</span>
       </div>
-      <button class="btn-ghost" onclick="openSupportModal()" style="border-color:#f59e0b; color:#f59e0b;">Support Pool</button>
+      <button class="btn-ghost" style="display:none;" style="border-color:#f59e0b; color:#f59e0b;">Support Pool</button>
       <button class="btn-ghost" onclick="openDepositModal()">Deposit</button>
       <button class="btn-brand" id="btnConnect" onclick="openConnectModal()">Connect Keypair</button>
     </div>
@@ -976,31 +976,27 @@
     </div>
   </div>
 
-  <!-- Support Protocol & On-Chain Liquidity Modal -->
-  <div class="modal-backdrop" id="supportModal">
-    <div class="modal-window" style="max-width: 480px;">
+  <!-- Deposit Modal -->
+  <div class="modal-backdrop" id="depositModal">
+    <div class="modal-window">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="font-size:14px; font-weight:700; color:#f59e0b;">Support Protocol & On-Chain Liquidity</h3>
-        <button class="btn-ghost" onclick="closeSupportModal()">✕</button>
+        <h3 style="font-size:14px; font-weight:700;">Fund Trading Balance</h3>
+        <button class="btn-ghost" onclick="closeDepositModal()">✕</button>
       </div>
-      <p style="font-size:12px; color:var(--text-secondary); margin: 10px 0 14px 0; line-height:1.5;">
-        Langdex operates with zero venture capital, no pre-mine, and no token sale.
-        Contributions directly fund smart contract deployment and initial liquidity pool bootstrapping on Ethereum/Base/Arbitrum to make DEK swappable on-chain for BTC and ETH.
+      <p style="font-size:12px; color:var(--text-secondary);">
+        Specify amount of DEK to deposit into your self-custody exchange ledger:
       </p>
-
-      <div style="background:#13111a; border:1px solid #332b45; border-radius:6px; padding:12px; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-size:11px; font-weight:700; color:#f59e0b;">BITCOIN DONATION ADDRESS (Native SegWit)</span>
-          <button class="btn-ghost" id="btnCopyBtc" onclick="copyBtcAddress()" style="font-size:11px; padding:2px 8px;">Copy Address</button>
-        </div>
-        <div style="font-family:monospace; font-size:12px; color:#fff; word-break:break-all; background:#0a0910; padding:8px 10px; border-radius:4px; border:1px solid #201a30;" id="btcAddressText">
-          bc1qtpfpmm2f3eghnhp8ke854gsql045tqxza708e2
-        </div>
+      <div class="input-box">
+        <input type="number" id="depositInput" placeholder="Amount (e.g. 500)" min="1" style="width:80%;">
+        <span class="input-label" style="color:#fff;">DEK</span>
       </div>
-
-      <div style="font-size:11px; color:var(--text-tertiary); line-height:1.4;">
-        100% of received Bitcoin will be allocated toward bootstrapping the canonical DEK cross-chain liquidity pool and continuous decentralized oracle network infrastructure.
+      <div style="display:flex; gap:6px;">
+        <button class="pip-btn" onclick="$('depositInput').value=100">100 DEK</button>
+        <button class="pip-btn" onclick="$('depositInput').value=500">500 DEK</button>
+        <button class="pip-btn" onclick="$('depositInput').value=1000">1,000 DEK</button>
+        <button class="pip-btn" onclick="$('depositInput').value=5000">5,000 DEK</button>
       </div>
+      <button class="btn-brand" onclick="confirmDeposit()" style="width:100%; margin-top:6px;">Confirm Deposit</button>
     </div>
   </div>
 
@@ -1050,17 +1046,6 @@
       openModal("depositModal");
     }
     function closeDepositModal() { closeModal("depositModal"); }
-    function openSupportModal() { openModal("supportModal"); }
-    function closeSupportModal() { closeModal("supportModal"); }
-    function copyBtcAddress() {
-      const addr = "bc1qtpfpmm2f3eghnhp8ke854gsql045tqxza708e2";
-      navigator.clipboard.writeText(addr).then(() => {
-        const btn = $("btnCopyBtc");
-        if (btn) btn.textContent = "Copied!";
-        setTimeout(() => { if (btn) btn.textContent = "Copy Address"; }, 2500);
-      });
-    }
-
     async function api(path, opts={}) {
       const headers = { "Content-Type": "application/json" };
       if (userToken) headers["X-Token"] = userToken;
