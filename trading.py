@@ -35,17 +35,20 @@ def signup(name=None, address=None):
     return token
 
 def deposit(token, amount):
+    """Simulated local test deposit for demonstration and paper-trading sandbox.
+    Does not represent external blockchain settlement.
+    """
     if amount <= 0:
         raise ValueError("Deposit amount must be positive")
     with conn() as c:
         u = _user(c, token)
-        # 100% native DEK accounting
+        # Sandbox simulated balance accounting
         c.execute("UPDATE users SET dek = COALESCE(dek, 0.0) + ?, cash = COALESCE(cash, 0.0) + ? WHERE id = ?",
                   (amount, amount, u["id"]))
         c.execute("INSERT INTO trades(user_id, symbol, side, units, price, dek_rewarded) VALUES (?, ?, ?, ?, ?, 0.0)",
                   (u["id"], BASE_DENOMINATION, "deposit", amount, 1.0))
         c.execute("INSERT INTO dek_ledger(user_id, delta, reason) VALUES (?, ?, ?)",
-                  (u["id"], amount, "Wallet DEK deposit"))
+                  (u["id"], amount, "Sandbox paper-trading DEK deposit"))
     return portfolio(token)
 
 def burn(token, amount):
@@ -207,8 +210,19 @@ def trade(token, sym, side, points):
                       (points, points, u["id"]))
             delta = -units
 
-        # Protocol incentive: award DEK rebate for providing trade volume
+        # Protocol incentive: award DEK rebate for providing trade volume (enforcing hard cap)
         dek_reward = round(points * (DEK_PER_TRADE_BPS / 10000.0), 4)
+
+        # Enforce protocol hard cap for trade rebates
+        minted_row = c.execute("""
+            SELECT COALESCE(SUM(delta), 0.0) as total_minted
+            FROM dek_ledger
+            WHERE delta > 0 AND (reason LIKE 'Oracle block reward%' OR reason LIKE 'Trade incentive%')
+        """).fetchone()
+        current_minted = minted_row["total_minted"] if minted_row else 0.0
+
+        if current_minted + dek_reward > DEK_MAX_SUPPLY:
+            dek_reward = max(0.0, float(DEK_MAX_SUPPLY - current_minted))
 
         c.execute("INSERT INTO positions VALUES (?,?,?) ON CONFLICT(user_id,symbol) "
                   "DO UPDATE SET units=units+?", (u["id"], sym, delta, delta))

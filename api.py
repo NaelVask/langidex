@@ -282,7 +282,7 @@ def verified_proofs(
         if symbol:
             rows = c.execute(
                 """SELECT epoch_day, symbol, repo_name, commit_hash, tree_hash,
-                          verifier_node, merkle_root, verified_at
+                          verifier_node, merkle_root, signature, verified_at
                    FROM verified_proofs
                    WHERE symbol = ?
                    ORDER BY verified_at DESC
@@ -292,7 +292,7 @@ def verified_proofs(
         else:
             rows = c.execute(
                 """SELECT epoch_day, symbol, repo_name, commit_hash, tree_hash,
-                          verifier_node, merkle_root, verified_at
+                          verifier_node, merkle_root, signature, verified_at
                    FROM verified_proofs
                    ORDER BY verified_at DESC
                    LIMIT ?""",

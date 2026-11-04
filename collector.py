@@ -165,18 +165,22 @@ def get_codeberg_repos(sym: str) -> int:
 
 # -- GitLab source (Public REST API) ----------------------------------------
 
-def get_gitlab_activity(sym: str) -> int:
+def get_gitlab_activity(sym: str, day: str = None) -> int:
     lang_name = CODEBERG_LANG_MAP.get(sym)
     if not lang_name:
         return 0
     url = "https://gitlab.com/api/v4/projects"
-    params = {"with_programming_language": lang_name, "per_page": 20, "order_by": "last_activity_at"}
+    params = {"with_programming_language": lang_name, "per_page": 50, "order_by": "last_activity_at"}
     headers = {"User-Agent": "Langdex-Oracle/1.0"}
     try:
         r = requests.get(url, params=params, headers=headers, timeout=10)
         if r.status_code == 200:
             data = r.json()
             if isinstance(data, list):
+                if day:
+                    # Accurately filter projects whose last activity matches the epoch day (YYYY-MM-DD)
+                    matching = [p for p in data if str(p.get("last_activity_at", "")).startswith(day)]
+                    return len(matching)
                 return len(data)
     except Exception:
         pass
@@ -193,7 +197,7 @@ WEIGHTS = {
 
 def compute_composite(sym, gh_count, day):
     cb_count = get_codeberg_repos(sym)
-    gl_count = get_gitlab_activity(sym)
+    gl_count = get_gitlab_activity(sym, day=day)
     extra_forge_count = cb_count + gl_count
 
     if sym not in WEIGHTS:
@@ -354,12 +358,17 @@ def verify_and_record_proofs(node_pubkey: str, miner_privkey: str, epoch_day: st
     potop_proof = compute_potop_proof(miner_privkey, verified_records, epoch_day)
     merkle_root = potop_proof["merkle_root"]
 
+    # Generate public Ed25519 signature over the Merkle root and epoch day
+    import crypto_engine as ce
+    proof_payload = {"epoch_day": epoch_day, "merkle_root": merkle_root, "node_pubkey": node_pubkey}
+    proof_sig = ce.sign_payload(miner_privkey, proof_payload)
+
     with conn() as c:
         for r in verified_records:
             c.execute("""
-                INSERT INTO verified_proofs(epoch_day, symbol, repo_name, commit_hash, tree_hash, verifier_node, merkle_root)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (epoch_day, r["symbol"], r["repo_name"], r["commit_hash"], r["tree_hash"], node_pubkey, merkle_root))
+                INSERT INTO verified_proofs(epoch_day, symbol, repo_name, commit_hash, tree_hash, verifier_node, merkle_root, signature)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (epoch_day, r["symbol"], r["repo_name"], r["commit_hash"], r["tree_hash"], node_pubkey, merkle_root, proof_sig))
 
     return len(verified_records)
 

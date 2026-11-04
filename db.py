@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS verified_proofs(
     tree_hash     TEXT,
     verifier_node TEXT,
     merkle_root   TEXT,
+    signature     TEXT,
     verified_at   TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_proofs_symbol ON verified_proofs(symbol);

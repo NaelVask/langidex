@@ -22,9 +22,12 @@ def get_or_prompt_wallet() -> tuple[str, str]:
     if os.path.exists(WALLET_FILE):
         try:
             with open(WALLET_FILE, "r", encoding="utf-8") as f:
-                phrase = f.read().strip()
-            if phrase and wb.validate_mnemonic(phrase):
-                priv, pub = wb.mnemonic_to_keypair(phrase)
+                content = f.read().strip()
+            if ":" in content:
+                pub, priv = content.split(":", 1)
+                return pub, priv
+            elif wb.validate_mnemonic(content):
+                priv, pub = wb.mnemonic_to_keypair(content)
                 return pub, priv
         except Exception:
             pass
@@ -60,9 +63,10 @@ def get_or_prompt_wallet() -> tuple[str, str]:
         print("*" * 64 + "\n")
 
     priv, pub = wb.mnemonic_to_keypair(phrase)
+    # Store only derived keypair, never plain mnemonic words, to protect user security
     with open(WALLET_FILE, "w", encoding="utf-8") as f:
-        f.write(phrase)
-    print(f"[+] Wallet saved to {WALLET_FILE}.\n")
+        f.write(f"{pub}:{priv}")
+    print(f"[+] Validator keypair derived and secured in {WALLET_FILE}.\n")
     return pub, priv
 
 def run_miner():
