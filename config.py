@@ -79,6 +79,7 @@ MAX_USER_OPEN_INTEREST_RATIO = 0.15       # maximum 15% of open interest held by
 MIN_ORDER_VALUE              = 1.0        # minimum 1.0 DEK order size
 
 # Sharded Verification and Anti-Lazy Node Parameters
-SHARD_SAMPLE_SIZE      = 200     # each node verifies exactly 200 assigned repos per epoch
+# Phase 1 shard size: 10 repos per epoch. Target grows with the tracked repo pool.
+SHARD_SAMPLE_SIZE      = 10      # Phase 1: 10 repos verified per node per epoch
 NODE_STAKE_REQUIREMENT = 100.0   # DEK staked to participate in active oracle validation
 POTOP_HMAC_ALGO        = "sha256"# Proof of Tree Object Possession algorithm

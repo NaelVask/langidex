@@ -1,30 +1,26 @@
-"""Run once a day (cron / scheduler): fetch yesterday's counts, rebuild the index, award oracle block reward, and backup ledger.
-Usage:
-  python run_daily.py [node_wallet_address]
+"""Langdex Protocol: Daily data ingestion helper (no reward minting).
+
+This script only fetches yesterday's telemetry counts and rebuilds index prices.
+It does NOT mint any DEK or credit any reward.
+
+To earn a validator block reward, run the full miner pipeline instead:
+  python miner.py
+
+That pipeline runs PoTOP proof verification, the PoW puzzle, and the full
+reward function with supply-cap enforcement and Ed25519 signature binding.
 """
-import sys, os, datetime as dt
+import datetime as dt
 from db import init, backup_db
 from collector import collect
 from index_engine import rebuild_prices
-from trading import award_oracle_reward
 
 init()
 epoch_day = (dt.date.today() - dt.timedelta(days=1)).isoformat()
-print(f"=== Langdex Daily Epoch Process: {epoch_day} ===")
+print(f"=== Langdex Daily Data Ingest: {epoch_day} ===")
 
-# Ingest and rebuild
 collect(epoch_day)
 rebuild_prices()
 
-# Check for node reward
-node_addr = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("NODE_WALLET_ADDRESS")
-if node_addr:
-    bal = award_oracle_reward(node_addr, epoch_day)
-    print(f"[REWARD MINTED] Epoch {epoch_day} validator reward (50.0 DEK) credited to {node_addr}")
-    print(f"Updated Wallet Balance: {bal:.2f} DEK")
-else:
-    print("[NOTE] No node wallet address passed. Run with 'python run_daily.py <wallet_address>' to claim 50 DEK reward.")
-
-# Rolling ledger backup
 backup_path = backup_db()
-print(f"[BACKUP] Ledger state safely backed up: {backup_path}")
+print(f"[BACKUP] Ledger snapshot saved: {backup_path}")
+print("[INFO] No DEK was minted. Run 'python miner.py' to perform full validator proof and earn a reward.")
